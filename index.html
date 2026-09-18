@@ -237,14 +237,18 @@ window.addLine=function addLine(){
     '<div class="articulo-line-top">'+
       '<div class="field" style="position:relative">'+
         '<label>Artículo</label>'+
-        '<input type="text" id="art_'+id+'" placeholder="00000000" maxlength="8" inputmode="numeric" oninput="buscarArticulo('+id+',this.value)">'+
+        '<input type="text" id="art_'+id+'" placeholder="Código..." oninput="buscarArticulo('+id+',this.value,\'art\')">'+
         '<div class="autocomplete-list" id="art_'+id+'_list"></div>'+
       '</div>'+
       '<div class="field"><label>Unidades</label><input type="number" id="uni_'+id+'" placeholder="0" min="1" step="1" inputmode="numeric"></div>'+
       '<div class="field"><label>Dto.%</label><input type="number" id="dto_'+id+'" placeholder="0" min="0" max="100" step="0.1" inputmode="decimal"></div>'+
       '<button type="button" class="del-btn" onclick="removeLine('+id+')" title="Eliminar">×</button>'+
     '</div>'+
-    '<div class="field" style="margin-bottom:0"><label>Descripción</label><input type="text" id="desc_'+id+'" placeholder="Descripción del artículo..."></div>';
+    '<div class="field" style="margin-bottom:0;position:relative">'+
+      '<label>Descripción</label>'+
+      '<input type="text" id="desc_'+id+'" placeholder="Escribe para buscar por descripción..." oninput="buscarArticulo('+id+',this.value,\'desc\')">'+
+      '<div class="autocomplete-list" id="desc_'+id+'_list"></div>'+
+    '</div>';
   c.appendChild(div);
   div.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -338,25 +342,38 @@ async function buscarClientePorPartner(term){
 function debounce(fn,ms){ let t; return function(...args){ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args),ms); }; }
 const buscarClienteDebounced=debounce(buscarClientePorNombre,300);
 const buscarPartnerDebounced=debounce(buscarClientePorPartner,300);
-
-/* ---------- autocompletado: artículos por línea ---------- */
-const buscarArticuloDebounced=debounce(async function(id,term){
-  const listEl=document.getElementById('art_'+id+'_list');
+/* ---------- autocompletado: artículos por línea (busca por código, descripción o clave de búsqueda) ---------- */
+const buscarArticuloDebounced=debounce(async function(id,term,campo){
+  const listEl=document.getElementById(campo+'_'+id+'_list');
   if(!term){ listEl.classList.remove('open'); return; }
+  const termLower=term.toLowerCase();
+  const vistos=new Set();
   const items=[];
+  function agregar(d){
+    const a=d.data();
+    if(vistos.has(d.id)) return;
+    vistos.add(d.id);
+    items.push({mainText:d.id+' — '+(a.descripcion||''),subText:a.claveBusqueda||'',codigo:d.id,descripcion:a.descripcion});
+  }
   try{
     const exact=await getDoc(doc(db,'articulos',term.padStart(8,'0').slice(-8)));
-    if(exact.exists()){ const a=exact.data(); items.push({mainText:exact.id,subText:a.descripcion,codigo:exact.id,descripcion:a.descripcion}); }
+    if(exact.exists()) agregar(exact);
   }catch(e){}
-  const q=query(collection(db,'articulos'), orderBy('codigo'), startAt(term), endAt(term+''), limit(8));
-  const snap=await getDocs(q);
-  snap.forEach(function(d){ if(d.id!==term){ const a=d.data(); items.push({mainText:d.id,subText:a.descripcion,codigo:d.id,descripcion:a.descripcion}); } });
-  renderAutocomplete(listEl, items, function(it){
+  const consultas=[
+    query(collection(db,'articulos'), orderBy('codigo'), startAt(term), endAt(term+''), limit(6)),
+    query(collection(db,'articulos'), orderBy('descripcionLower'), startAt(termLower), endAt(termLower+''), limit(6)),
+    query(collection(db,'articulos'), orderBy('claveBusquedaLower'), startAt(termLower), endAt(termLower+''), limit(6)),
+  ];
+  const resultados=await Promise.all(consultas.map(q=>getDocs(q)));
+  resultados.forEach(snap=>snap.forEach(agregar));
+  renderAutocomplete(listEl, items.slice(0,10), function(it){
     document.getElementById('art_'+id).value=it.codigo;
     document.getElementById('desc_'+id).value=it.descripcion||'';
   });
 },300);
-window.buscarArticulo=function(id,term){ buscarArticuloDebounced(id,term); };
+window.buscarArticulo=function(id,term,campo){ buscarArticuloDebounced(id,term,campo||'art'); };
+
+
 
 /* ---------- validación ---------- */
 function validate(){
