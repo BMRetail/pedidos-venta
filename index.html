@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pedidos de Venta · BigMat</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bm-blue:#1A3A6B;
+  --bm-blue-mid:#2B5BA8;
+  --bm-blue-light:#E8EEF8;
+  --bm-blue-pale:#F0F4FB;
+  --bm-red:#C0272D;
+  --bm-red-light:#FAEAEA;
+  --bm-green:#1a7a3a;
+  --bm-green-dark:#15632f;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#F0F4FB;min-height:100vh;padding:0;margin:0;font-size:15px}
+.page{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+
+.form-header{background:var(--bm-blue);padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.header-right{flex:1}
+.header-title{color:#fff;font-size:13px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;line-height:1.2}
+.header-sub{color:rgba(255,255,255,.55);font-size:10px;margin-top:2px}
+
+.form-body{flex:1;background:#fff}
+.section{padding:14px 16px;border-bottom:1px solid var(--bm-blue-light)}
+.section-title{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--bm-blue);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title::before{content:'';display:inline-block;width:3px;height:13px;background:var(--bm-red);border-radius:2px;flex-shrink:0}
+
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;position:relative}
+.field:last-child{margin-bottom:0}
+label{font-size:12px;color:var(--bm-blue);font-weight:600;letter-spacing:.01em}
+label.required::after{content:" *";color:var(--bm-red);font-weight:700}
+input,select,textarea{font-family:inherit;font-size:15px;color:#1a1a2e;background:#fff;border:1.5px solid var(--bm-blue-mid);border-radius:8px;padding:11px 12px;width:100%;outline:none;-webkit-appearance:none;appearance:none;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--bm-blue);box-shadow:0 0 0 3px rgba(43,91,168,.12)}
+input[readonly]{color:#666;background:#F0F4FB;border-color:#b0c0df}
+input.error,select.error{border-color:var(--bm-red);background:var(--bm-red-light)}
+textarea{resize:vertical;min-height:64px;line-height:1.5}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%232B5BA8' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.radio-group{display:flex;gap:10px}
+.radio-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--bm-blue-mid);border-radius:8px;padding:10px;cursor:pointer}
+.radio-btn input{width:auto;padding:0}
+.radio-btn label{margin:0;color:#1a1a2e;font-weight:500}
+
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--bm-blue-mid);border-top:none;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:50;display:none;box-shadow:0 4px 10px rgba(0,0,0,.1)}
+.autocomplete-list.open{display:block}
+.autocomplete-item{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--bm-blue-light)}
+.autocomplete-item:last-child{border-bottom:none}
+.autocomplete-item:hover,.autocomplete-item.active{background:var(--bm-blue-pale)}
+.autocomplete-item small{display:block;color:#667;font-size:11px;margin-top:2px}
+
+.articulo-line{margin-bottom:10px;padding:12px;background:var(--bm-blue-pale);border:1px solid var(--bm-blue-light);border-radius:10px}
+.articulo-line-top{display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:8px;align-items:end;margin-bottom:10px}
+.articulo-line .field{margin-bottom:0}
+.articulo-line .field label{font-size:11px;color:var(--bm-blue)}
+.del-btn{height:44px;border:none;background:var(--bm-red-light);color:var(--bm-red);border-radius:8px;font-size:18px;cursor:pointer}
+.add-line-btn{width:100%;margin-top:6px;padding:12px;border:1.5px dashed var(--bm-blue-mid);background:#fff;color:var(--bm-blue);border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+
+.submit-bar{padding:14px 16px 22px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.submit-btn{width:100%;padding:14px;border:none;border-radius:10px;background:var(--bm-green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.submit-btn:disabled{opacity:.6}
+.submit-btn:active{background:var(--bm-green-dark)}
+.clear-btn{width:100%;padding:10px;border:1.5px solid #ccc;border-radius:10px;background:#fff;color:#666;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+
+.status-banner{margin:12px 16px 0;padding:12px 14px;border-radius:8px;font-size:13px;font-weight:600;display:none}
+.status-banner.show{display:block}
+.status-banner.ok{background:#e6f4ea;color:var(--bm-green-dark);border:1px solid #b7ddc3}
+.status-banner.err{background:var(--bm-red-light);color:var(--bm-red);border:1px solid #f0bcbe}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="form-header">
+    <div class="header-right">
+      <div class="header-title">Pedido de Venta</div>
+      <div class="header-sub">BigMat &middot; captura en obra</div>
+    </div>
+  </div>
+
+  <div id="statusBanner" class="status-banner"></div>
+
+  <form class="form-body" id="pedidoForm" onsubmit="return false">
+
+    <div class="section">
+      <div class="section-title">Datos del pedido</div>
+      <div class="field"><label>Fecha del pedido</label><input type="text" id="fecha_auto" readonly></div>
+      <div class="field">
+        <label class="required">Comercial</label>
+        <select id="comercial" required>
+          <option value="">— Seleccionar —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="required">Tienda vendedora</label>
+        <select id="tienda" required>
+          <option value="">— Seleccionar —</option>
+        </select>
+      </div>
+      <div class="field"><label>Datos importantes</label><textarea id="datos_importantes" placeholder="Observaciones o datos relevantes..."></textarea></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Datos del cliente</div>
+      <div class="field">
+        <label class="required">Cliente (razón social)</label>
+        <input type="text" id="cliente" placeholder="Escribe para buscar..." autocomplete="off">
+        <div class="autocomplete-list" id="cliente_list"></div>
+      </div>
+      <div class="field">
+        <label class="required">Partner (código cliente)</label>
+        <input type="text" id="partner" placeholder="Escribe para buscar..." autocomplete="off">
+        <div class="autocomplete-list" id="partner_list"></div>
+      </div>
+      <div class="field"><label class="required">Contacto autorizado</label><input type="text" id="contacto_autorizado" placeholder="Nombre"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Datos de entrega</div>
+      <div class="field">
+        <label class="required">Fecha para el transporte</label>
+        <input type="date" id="fecha_transporte">
+      </div>
+      <div class="field"><label class="required">Franja horaria</label>
+        <select id="franja">
+          <option value="">— Seleccionar —</option>
+          <option value="1ª Franja">1ª Franja</option>
+          <option value="2ª Franja">2ª Franja</option>
+          <option value="3ª Franja">3ª Franja</option>
+          <option value="Sin Franja Determinada">Sin Franja Determinada</option>
+        </select>
+      </div>
+      <div class="field"><label class="required">Dirección de entrega</label><input type="text" id="direccion" placeholder="Calle, número, piso..." autocomplete="street-address"></div>
+      <div class="row-2">
+        <div class="field"><label class="required">Código postal</label><input type="tel" id="cp" placeholder="28000" maxlength="5" inputmode="numeric"></div>
+        <div class="field"><label class="required">Municipio</label><input type="text" id="municipio" placeholder="Ciudad"></div>
+      </div>
+      <div class="field"><label class="required">Contacto en obra</label><input type="text" id="contacto_obra" placeholder="Nombre del contacto"></div>
+      <div class="field"><label class="required">Teléfono contacto</label><input type="tel" id="tlfo1" placeholder="600-000-000" maxlength="11" inputmode="tel" oninput="formatTel(this)"></div>
+      <div class="field"><label>Calle estrecha</label>
+        <div class="radio-group">
+          <div class="radio-btn"><input type="radio" name="calle_estrecha" id="ce_si" value="Sí"><label for="ce_si">Sí</label></div>
+          <div class="radio-btn"><input type="radio" name="calle_estrecha" id="ce_no" value="No"><label for="ce_no">No</label></div>
+        </div>
+      </div>
+      <div class="field"><label>Grúa 15 m</label>
+        <div class="radio-group">
+          <div class="radio-btn"><input type="radio" name="grua" id="g_si" value="Sí"><label for="g_si">Sí</label></div>
+          <div class="radio-btn"><input type="radio" name="grua" id="g_no" value="No"><label for="g_no">No</label></div>
+        </div>
+      </div>
+      <div class="field"><label>Contacto alternativo</label><input type="text" id="contacto_alt" placeholder="Nombre contacto alternativo"></div>
+      <div class="field"><label>Teléfono alternativo</label><input type="tel" id="tlfo2" placeholder="600-000-000" maxlength="11" inputmode="tel" oninput="formatTel(this)"></div>
+      <div class="field"><label class="required">Forma de pago</label>
+        <select id="forma_pago">
+          <option value="">— Seleccionar —</option>
+          <option value="Pagado">Pagado</option>
+          <option value="Crédito">Crédito</option>
+          <option value="Cobro destino Efectivo">Cobro destino Efectivo</option>
+          <option value="Cobro destino Datáfono">Cobro destino Datáfono</option>
+        </select>
+      </div>
+      <div class="field"><label>Cantidad a cobrar (€)</label>
+        <input type="number" id="cantidad" placeholder="0,00" step="0.01" min="0" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Líneas de pedido</div>
+      <div id="articulos-container"></div>
+      <button type="button" class="add-line-btn" onclick="addLine()">
+        <span style="font-size:20px;line-height:1">+</span> Añadir artículo
+      </button>
+    </div>
+
+  </form>
+
+  <div class="submit-bar">
+    <button class="submit-btn" id="submitBtn" onclick="enviarPedido()">Guardar pedido</button>
+    <button class="clear-btn" onclick="limpiarFormulario()">Limpiar formulario</button>
+  </div>
+
+</div>
+
+<script type="module">
+/* ============================================================
+   CONFIGURACIÓN FIREBASE — rellenar tras crear el proyecto en
+   console.firebase.google.com (Configuración del proyecto ›
+   Tus apps › Config del SDK). El apiKey no es secreto: la
+   seguridad real la dan las reglas de Firestore, no ocultar
+   esto.
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCFlXktr5ekgUji_iJmS1g1p3-J99Ljtww",
+  authDomain: "bigmat-pedidos-venta.firebaseapp.com",
+  projectId: "bigmat-pedidos-venta",
+  storageBucket: "bigmat-pedidos-venta.firebasestorage.app",
+  messagingSenderId: "136604898443",
+  appId: "1:136604898443:web:77ef9c2b70d8637d79f08e"
+};
+
+import { initializeApp } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/app/+esm';
+import {
+  getFirestore, collection, doc, getDoc, getDocs, addDoc,
+  query, orderBy, startAt, endAt, limit, serverTimestamp
+} from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
+
+const app = initializeApp(FIREBASE_CONFIG);
+const db = getFirestore(app);
+
+window.lineCount = 0;
+let tiendasCache = [];
+let clienteSeleccionado = null; // {partner, razonSocial}
+
+/* ---------- utilidades ---------- */
+function formatTel(el){let v=el.value.replace(/\D/g,'');if(v.length>9)v=v.slice(0,9);let fmt='';for(let i=0;i<v.length;i++){if(i===3||i===6)fmt+='-';fmt+=v[i];}el.value=fmt;}
+function validateTel(val){const digits=val.replace(/\D/g,'');return digits.length===9;}
+function f(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+function getRadio(name){const els=document.querySelectorAll('input[name="'+name+'"]:checked');return els.length?els[0].value:'';}
+function setMinDate(){const ft=document.getElementById('fecha_transporte');const y=new Date();y.setDate(y.getDate()-1);ft.min=y.toISOString().split('T')[0];}
+function showStatus(msg,ok){const b=document.getElementById('statusBanner');b.textContent=msg;b.className='status-banner show '+(ok?'ok':'err');window.scrollTo({top:0,behavior:'smooth'});}
+window.formatTel=formatTel;
+
+/* ---------- líneas de artículo ---------- */
+window.addLine=function addLine(){
+  lineCount++;
+  const id=lineCount;
+  const c=document.getElementById('articulos-container');
+  const div=document.createElement('div');
+  div.className='articulo-line';
+  div.id='line-'+id;
+  div.innerHTML=
+    '<div class="articulo-line-top">'+
+      '<div class="field" style="position:relative">'+
+        '<label>Artículo</label>'+
+        '<input type="text" id="art_'+id+'" placeholder="00000000" maxlength="8" inputmode="numeric" oninput="buscarArticulo('+id+',this.value)">'+
+        '<div class="autocomplete-list" id="art_'+id+'_list"></div>'+
+      '</div>'+
+      '<div class="field"><label>Unidades</label><input type="number" id="uni_'+id+'" placeholder="0" min="1" step="1" inputmode="numeric"></div>'+
+      '<div class="field"><label>Dto.%</label><input type="number" id="dto_'+id+'" placeholder="0" min="0" max="100" step="0.1" inputmode="decimal"></div>'+
+      '<button type="button" class="del-btn" onclick="removeLine('+id+')" title="Eliminar">×</button>'+
+    '</div>'+
+    '<div class="field" style="margin-bottom:0"><label>Descripción</label><input type="text" id="desc_'+id+'" placeholder="Descripción del artículo..."></div>';
+  c.appendChild(div);
+  div.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+window.removeLine=function removeLine(id){const el=document.getElementById('line-'+id);if(el)el.remove();}
+function getLineas(){
+  const lines=[];
+  document.querySelectorAll('[id^="line-"]').forEach(function(div){
+    const id=div.id.replace('line-','');
+    const art=f('art_'+id), uni=f('uni_'+id), dto=f('dto_'+id), desc=f('desc_'+id);
+    if(art||uni) lines.push({articuloCodigo:art.padStart(8,'0').slice(-8), unidades:uni?Number(uni):0, descuentoPct:dto?Number(dto):0, descripcion:desc});
+  });
+  return lines;
+}
+
+/* ---------- autocompletado: comerciales / tiendas ---------- */
+async function cargarComerciales(){
+  const sel=document.getElementById('comercial');
+  const snap=await getDocs(collection(db,'comerciales'));
+  snap.forEach(function(d){
+    const c=d.data();
+    if(c.activo===false) return;
+    const opt=document.createElement('option');
+    opt.value=d.id; opt.textContent=c.nombre;
+    sel.appendChild(opt);
+  });
+}
+async function cargarTiendas(){
+  const sel=document.getElementById('tienda');
+  const snap=await getDocs(collection(db,'tiendas'));
+  snap.forEach(function(d){
+    const a=d.data();
+    if(a.activo===false) return;
+    tiendasCache.push({id:d.id,...a});
+    const opt=document.createElement('option');
+    opt.value=d.id; opt.textContent=(a.nombre||d.id)+(a.region?' ('+a.region+')':'');
+    sel.appendChild(opt);
+  });
+}
+
+/* ---------- autocompletado: clientes (Cliente <-> Partner) ---------- */
+function renderAutocomplete(listEl, items, onPick){
+  listEl.innerHTML='';
+  if(!items.length){ listEl.classList.remove('open'); return; }
+  items.forEach(function(it){
+    const row=document.createElement('div');
+    row.className='autocomplete-item';
+    row.innerHTML=it.mainText+(it.subText?'<small>'+it.subText+'</small>':'');
+    row.onclick=function(){ onPick(it); listEl.classList.remove('open'); };
+    listEl.appendChild(row);
+  });
+  listEl.classList.add('open');
+}
+
+async function buscarClientePorNombre(term){
+  const listEl=document.getElementById('cliente_list');
+  if(!term){ listEl.classList.remove('open'); return; }
+  const termLower=term.toLowerCase();
+  const q=query(collection(db,'clientes'), orderBy('razonSocialLower'), startAt(termLower), endAt(termLower+''), limit(8));
+  const snap=await getDocs(q);
+  const items=[];
+  snap.forEach(function(d){ const c=d.data(); items.push({mainText:c.razonSocial,subText:'Partner: '+d.id,partner:d.id,razonSocial:c.razonSocial,contacto:c.contactoAutorizadoHabitual}); });
+  renderAutocomplete(listEl, items, function(it){
+    document.getElementById('cliente').value=it.razonSocial;
+    document.getElementById('partner').value=it.partner;
+    if(it.contacto) document.getElementById('contacto_autorizado').value=it.contacto;
+    clienteSeleccionado={partner:it.partner,razonSocial:it.razonSocial};
+  });
+}
+
+async function buscarClientePorPartner(term){
+  const listEl=document.getElementById('partner_list');
+  if(!term){ listEl.classList.remove('open'); return; }
+  // 1) intento de match exacto por id (partner = doc id)
+  const items=[];
+  try{
+    const exact=await getDoc(doc(db,'clientes',term));
+    if(exact.exists()){ const c=exact.data(); items.push({mainText:term,subText:c.razonSocial,partner:term,razonSocial:c.razonSocial,contacto:c.contactoAutorizadoHabitual}); }
+  }catch(e){/* id inválido como doc id, ignorar */}
+  // 2) prefijo sobre el campo partner (por si el código tiene prefijos/ceros)
+  const q=query(collection(db,'clientes'), orderBy('partner'), startAt(term), endAt(term+''), limit(8));
+  const snap=await getDocs(q);
+  snap.forEach(function(d){ if(d.id!==term){ const c=d.data(); items.push({mainText:d.id,subText:c.razonSocial,partner:d.id,razonSocial:c.razonSocial,contacto:c.contactoAutorizadoHabitual}); } });
+  renderAutocomplete(listEl, items, function(it){
+    document.getElementById('partner').value=it.partner;
+    document.getElementById('cliente').value=it.razonSocial;
+    if(it.contacto) document.getElementById('contacto_autorizado').value=it.contacto;
+    clienteSeleccionado={partner:it.partner,razonSocial:it.razonSocial};
+  });
+}
+
+function debounce(fn,ms){ let t; return function(...args){ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args),ms); }; }
+const buscarClienteDebounced=debounce(buscarClientePorNombre,300);
+const buscarPartnerDebounced=debounce(buscarClientePorPartner,300);
+
+/* ---------- autocompletado: artículos por línea ---------- */
+const buscarArticuloDebounced=debounce(async function(id,term){
+  const listEl=document.getElementById('art_'+id+'_list');
+  if(!term){ listEl.classList.remove('open'); return; }
+  const items=[];
+  try{
+    const exact=await getDoc(doc(db,'articulos',term.padStart(8,'0').slice(-8)));
+    if(exact.exists()){ const a=exact.data(); items.push({mainText:exact.id,subText:a.descripcion,codigo:exact.id,descripcion:a.descripcion}); }
+  }catch(e){}
+  const q=query(collection(db,'articulos'), orderBy('codigo'), startAt(term), endAt(term+''), limit(8));
+  const snap=await getDocs(q);
+  snap.forEach(function(d){ if(d.id!==term){ const a=d.data(); items.push({mainText:d.id,subText:a.descripcion,codigo:d.id,descripcion:a.descripcion}); } });
+  renderAutocomplete(listEl, items, function(it){
+    document.getElementById('art_'+id).value=it.codigo;
+    document.getElementById('desc_'+id).value=it.descripcion||'';
+  });
+},300);
+window.buscarArticulo=function(id,term){ buscarArticuloDebounced(id,term); };
+
+/* ---------- validación ---------- */
+function validate(){
+  const required=['comercial','tienda','cliente','partner','contacto_autorizado','fecha_transporte','franja','direccion','cp','municipio','contacto_obra','tlfo1','forma_pago'];
+  let ok=true; const missing=[];
+  required.forEach(function(id){
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(!el.value.trim()){ el.classList.add('error'); ok=false; const label=el.closest('.field')?.querySelector('label'); if(label) missing.push(label.textContent.replace(' *','').trim()); }
+    else el.classList.remove('error');
+  });
+  if(missing.length){ showStatus('Faltan campos obligatorios: '+missing.join(', '), false); return false; }
+  const tel1=document.getElementById('tlfo1');
+  if(tel1.value && !validateTel(tel1.value)){ tel1.classList.add('error'); showStatus('El teléfono de contacto debe tener 9 dígitos.', false); return false; }
+  const tel2=document.getElementById('tlfo2');
+  if(tel2.value && !validateTel(tel2.value)){ tel2.classList.add('error'); showStatus('El teléfono alternativo debe tener 9 dígitos.', false); return false; }
+  const ft=document.getElementById('fecha_transporte');
+  if(ft.value){ const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1); const selected=new Date(ft.value+'T00:00:00'); if(selected<yesterday){ ft.classList.add('error'); showStatus('La fecha de transporte no puede ser anterior a ayer.', false); return false; } }
+  if(getLineas().length===0){ showStatus('Añade al menos una línea de artículo.', false); return false; }
+  return true;
+}
+
+/* ---------- guardado en Firestore ---------- */
+window.enviarPedido=async function enviarPedido(){
+  if(!validate()) return;
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    const tiendaSel=tiendasCache.find(a=>a.id===f('tienda'))||{};
+    const comercialSel=document.getElementById('comercial');
+    const pedido={
+      tenant:'PENDIENTE', // se rellena con datos reales del comercial autenticado más adelante
+      comercialId:f('comercial'),
+      comercialNombre:comercialSel.options[comercialSel.selectedIndex]?.textContent||'',
+      tiendaId:f('tienda'),
+      tiendaNombre:tiendaSel.nombre||'',
+      tiendaEmailDestino:tiendaSel.emailDestino||'',
+      datosImportantes:f('datos_importantes'),
+      clientePartner:f('partner'),
+      clienteRazonSocial:f('cliente'),
+      contactoAutorizado:f('contacto_autorizado'),
+      fechaTransporte:f('fecha_transporte'),
+      franjaHoraria:f('franja'),
+      direccion:f('direccion'), cp:f('cp'), municipio:f('municipio'),
+      calleEstrecha:getRadio('calle_estrecha')||null,
+      grua15m:getRadio('grua')||null,
+      contactoObra:f('contacto_obra'), telefonoObra:f('tlfo1'),
+      contactoAlternativo:f('contacto_alt')||null, telefonoAlternativo:f('tlfo2')||null,
+      formaPago:f('forma_pago'),
+      cantidadCobrar:f('cantidad')?Number(f('cantidad')):null,
+      lineas:getLineas(),
+      estadoEnvioEmail:'pendiente',
+      creadoEn:serverTimestamp()
+    };
+    await addDoc(collection(db,'pedidos'), pedido);
+    showStatus('Pedido guardado correctamente.', true);
+    limpiarFormulario(true);
+  }catch(err){
+    console.error(err);
+    showStatus('Error al guardar el pedido: '+err.message, false);
+  }finally{
+    btn.disabled=false; btn.textContent='Guardar pedido';
+  }
+}
+
+window.limpiarFormulario=function limpiarFormulario(skipConfirm){
+  if(!skipConfirm && !confirm('¿Seguro que quieres limpiar el formulario? Se borrarán todos los datos.')) return;
+  ['comercial','tienda','datos_importantes','cliente','partner','contacto_autorizado','fecha_transporte','franja','direccion','cp','municipio','contacto_obra','tlfo1','contacto_alt','tlfo2','forma_pago','cantidad'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
+  document.querySelectorAll('input[type=radio]').forEach(function(r){ r.checked=false; });
+  document.querySelectorAll('.error').forEach(function(el){ el.classList.remove('error'); });
+  document.getElementById('articulos-container').innerHTML='';
+  lineCount=0; addLine();
+  document.getElementById('statusBanner').classList.remove('show');
+  clienteSeleccionado=null;
+  setFechaAuto();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function setFechaAuto(){
+  const now=new Date();
+  const dd=String(now.getDate()).padStart(2,'0');
+  const mm=String(now.getMonth()+1).padStart(2,'0');
+  const yyyy=now.getFullYear();
+  document.getElementById('fecha_auto').value=dd+'/'+mm+'/'+yyyy;
+}
+
+/* ---------- init ---------- */
+(async function init(){
+  setFechaAuto();
+  setMinDate();
+  addLine();
+  document.getElementById('cliente').addEventListener('input', function(){ buscarClienteDebounced(this.value); });
+  document.getElementById('partner').addEventListener('input', function(){ buscarPartnerDebounced(this.value); });
+  document.addEventListener('click', function(e){
+    document.querySelectorAll('.autocomplete-list.open').forEach(function(list){
+      if(!list.contains(e.target) && e.target.id!==list.id.replace('_list','')) list.classList.remove('open');
+    });
+  });
+  try{
+    await Promise.all([cargarComerciales(), cargarTiendas()]);
+  }catch(err){
+    console.error(err);
+    showStatus('No se pudieron cargar Comerciales/Tiendas desde Firestore: '+err.message, false);
+  }
+})();
+</script>
+</body>
+</html>
