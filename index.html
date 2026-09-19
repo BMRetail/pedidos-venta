@@ -42,9 +42,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 .radio-group{display:flex;gap:10px}
-.radio-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--bm-blue-mid);border-radius:8px;padding:14px 10px;cursor:pointer}
+.radio-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--bm-blue-mid);border-radius:8px;padding:14px 10px;cursor:pointer;transition:background-color .15s,border-color .15s}
 .radio-btn input{width:auto;padding:0;pointer-events:none}
 .radio-btn span{margin:0;color:#1a1a2e;font-weight:500;pointer-events:none}
+.radio-btn:has(input:checked){background:var(--bm-blue-light);border-color:var(--bm-blue)}
+.radio-btn:has(input:checked) span{color:var(--bm-blue);font-weight:700}
 
 .autocomplete-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--bm-blue-mid);border-top:none;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:50;display:none;box-shadow:0 4px 10px rgba(0,0,0,.1)}
 .autocomplete-list.open{display:block}
