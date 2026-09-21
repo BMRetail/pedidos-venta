@@ -518,11 +518,20 @@ function construirCuerpoPedido(p){
   });
   return out;
 }
-function abrirCorreoPedido(p){
+function urlCorreoPedido(p){
   const asunto='Pedido - '+(p.comercialNombre||'')+' | '+(p.direccion||'')+' | '+(p.fechaTransporte||'');
   const cuerpo=construirCuerpoPedido(p);
   const destino=p.tiendaEmailDestino||'';
-  window.location.href='mailto:'+destino+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(cuerpo);
+  return 'mailto:'+destino+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(cuerpo);
+}
+function mostrarBotonCorreo(url){
+  const b=document.getElementById('statusBanner');
+  const link=document.createElement('a');
+  link.href=url;
+  link.textContent='📧 Abrir borrador de correo';
+  link.style.cssText='display:inline-block;margin-top:10px;padding:8px 14px;background:var(--bm-green-dark);color:#fff;border-radius:6px;font-weight:700;text-decoration:none';
+  b.appendChild(document.createElement('br'));
+  b.appendChild(link);
 }
 
 /* ---------- guardado en Firestore ---------- */
@@ -556,17 +565,13 @@ window.enviarPedido=async function enviarPedido(){
     creadoEn:serverTimestamp()
   };
 
-  // Abrir el correo YA, dentro del mismo clic (sin esperar a Firestore):
-  // varios navegadores bloquean en silencio la apertura de mailto: si
-  // ha pasado tiempo asíncrono (p.ej. el guardado) desde el clic original.
-  if(pedido.tiendaEmailDestino) abrirCorreoPedido(pedido);
-
   btn.disabled=true; btn.textContent='Guardando...';
   try{
     await addDoc(collection(db,'pedidos'), pedido);
     limpiarFormulario(true);
     if(pedido.tiendaEmailDestino){
-      showStatus('Pedido guardado. Revisa tu correo y pulsa Enviar.', true);
+      showStatus('Pedido guardado.', true);
+      mostrarBotonCorreo(urlCorreoPedido(pedido));
     } else {
       showStatus('Pedido guardado, pero esta tienda todavía no tiene email de transporte configurado. Avisa a transporte manualmente.', false);
     }
