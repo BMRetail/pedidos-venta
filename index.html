@@ -174,6 +174,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <option value="">— Seleccionar —</option>
           <option value="Pagado">Pagado</option>
           <option value="Crédito">Crédito</option>
+          <option value="Paygold">Paygold</option>
           <option value="Cobro destino Efectivo">Cobro destino Efectivo</option>
           <option value="Cobro destino Datáfono">Cobro destino Datáfono</option>
         </select>
@@ -194,7 +195,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </form>
 
   <div class="submit-bar">
-    <button class="submit-btn" id="submitBtn" onclick="enviarPedido()">Guardar y enviar por email</button>
+    <button class="submit-btn" id="submitBtn" onclick="enviarPedido()">Guardar pedido</button>
     <button class="clear-btn" onclick="limpiarFormulario()">Limpiar formulario</button>
   </div>
 
@@ -281,12 +282,28 @@ function getLineas(){
 }
 
 /* ---------- autocompletado: comerciales / tiendas ---------- */
+// PLTs a ocultar en el desplegable de Comercial de esta app (no son comerciales
+// reales: cajones genéricos, buckets "LA PLATAFORMA X" por tienda, bajas, etc.)
+// NO se borran de Firestore porque Rutero Comercial usa la misma colección.
+const COMERCIALES_OCULTOS=new Set([
+  '999999999','PLA999', // GENERAL, GENERICO PARA WORKFLOW
+  'PLT000A01','PLT000A02','PLT000A03','PLT000A05','PLT000A06','PLT000A10','PLT000A11',
+  'PLT000A13','PLT000A21','PLT000A26','PLT000A27','PLT000A28','PLT000A29','PLT000A30',
+  'PLT000C23','PLT000U04','PLT000U07', // LA PLATAFORMA ...
+  'SGDC004', // ROMERALO SANCHEZ, JAVIER
+  'PLT001965', // CATERINA CALCINA, VITA MARIA
+  'PLT00RSFV','PLT00RSTD', // RESERVA FUERZA VENTA, RESERVA TIENDA
+]);
+// Centros a ocultar en el desplegable de Tienda vendedora (plataformas logísticas
+// PLOG/SLOG, expositores, y el duplicado "GETAFE 2" — se deja solo GETAFE).
+const TIENDAS_OCULTAS=new Set(['L91','L93','L94','L95','S03','S04','S06','S23','A32']);
 async function cargarComerciales(){
   const sel=document.getElementById('comercial');
   const snap=await getDocs(collection(db,'comerciales'));
   snap.forEach(function(d){
     const c=d.data();
     if(c.activo===false) return;
+    if(COMERCIALES_OCULTOS.has(d.id)) return;
     const opt=document.createElement('option');
     opt.value=d.id; opt.textContent=c.nombre;
     sel.appendChild(opt);
@@ -298,6 +315,7 @@ async function cargarTiendas(){
   snap.forEach(function(d){
     const a=d.data();
     if(a.activo===false) return;
+    if(TIENDAS_OCULTAS.has(d.id)) return;
     tiendasCache.push({id:d.id,...a});
     const opt=document.createElement('option');
     opt.value=d.id; opt.textContent=(a.nombre||d.id)+(a.region?' ('+a.region+')':'');
@@ -528,7 +546,7 @@ function mostrarBotonCorreo(url){
   const b=document.getElementById('statusBanner');
   const link=document.createElement('a');
   link.href=url;
-  link.textContent='📧 Abrir borrador de correo';
+  link.textContent='📧 Enviar por mail';
   link.style.cssText='display:inline-block;margin-top:10px;padding:8px 14px;background:var(--bm-green-dark);color:#fff;border-radius:6px;font-weight:700;text-decoration:none';
   b.appendChild(document.createElement('br'));
   b.appendChild(link);
@@ -579,7 +597,7 @@ window.enviarPedido=async function enviarPedido(){
     console.error(err);
     showStatus('Error al guardar el pedido: '+err.message, false);
   }finally{
-    btn.disabled=false; btn.textContent='Guardar y enviar por email';
+    btn.disabled=false; btn.textContent='Guardar pedido';
   }
 }
 
