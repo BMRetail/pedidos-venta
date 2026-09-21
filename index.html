@@ -293,32 +293,51 @@ const COMERCIALES_OCULTOS=new Set([
   'SGDC004', // ROMERALO SANCHEZ, JAVIER
   'PLT001965', // CATERINA CALCINA, VITA MARIA
   'PLT00RSFV','PLT00RSTD', // RESERVA FUERZA VENTA, RESERVA TIENDA
+  'PLT000KAM', // CLIENTES KAM GENERICO
 ]);
 // Centros a ocultar en el desplegable de Tienda vendedora (plataformas logísticas
-// PLOG/SLOG, expositores, y el duplicado "GETAFE 2" — se deja solo GETAFE).
-const TIENDAS_OCULTAS=new Set(['L91','L93','L94','L95','S03','S04','S06','S23','A32']);
+// PLOG/SLOG, expositores, "GETAFE 2" duplicado, y SEDE 01 duplicado de SEDE).
+const TIENDAS_OCULTAS=new Set(['L91','L93','L94','L95','S03','S04','S06','S23','A32','C01']);
+// Orden de regiones pedido para el desplegable de Tienda: Madrid, Barcelona,
+// Castilla y León primero (en ese orden), el resto (SEDE, etc.) al final.
+const ORDEN_REGIONES=['MADRID','BARCELONA','CASTILLA_Y_LEON'];
 async function cargarComerciales(){
   const sel=document.getElementById('comercial');
   const snap=await getDocs(collection(db,'comerciales'));
+  const items=[];
   snap.forEach(function(d){
     const c=d.data();
     if(c.activo===false) return;
     if(COMERCIALES_OCULTOS.has(d.id)) return;
+    items.push({id:d.id,nombre:c.nombre||''});
+  });
+  items.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,'es'); });
+  items.forEach(function(it){
     const opt=document.createElement('option');
-    opt.value=d.id; opt.textContent=c.nombre;
+    opt.value=it.id; opt.textContent=it.nombre;
     sel.appendChild(opt);
   });
 }
 async function cargarTiendas(){
   const sel=document.getElementById('tienda');
   const snap=await getDocs(collection(db,'tiendas'));
+  const items=[];
   snap.forEach(function(d){
     const a=d.data();
     if(a.activo===false) return;
     if(TIENDAS_OCULTAS.has(d.id)) return;
-    tiendasCache.push({id:d.id,...a});
+    items.push({id:d.id,...a});
+  });
+  items.sort(function(a,b){
+    const ra=ORDEN_REGIONES.indexOf(a.region), rb=ORDEN_REGIONES.indexOf(b.region);
+    const pa=ra===-1?ORDEN_REGIONES.length:ra, pb=rb===-1?ORDEN_REGIONES.length:rb;
+    if(pa!==pb) return pa-pb;
+    return (a.nombre||'').localeCompare(b.nombre||'','es');
+  });
+  items.forEach(function(a){
+    tiendasCache.push(a);
     const opt=document.createElement('option');
-    opt.value=d.id; opt.textContent=(a.nombre||d.id)+(a.region?' ('+a.region+')':'');
+    opt.value=a.id; opt.textContent=(a.nombre||a.id)+(a.region?' ('+a.region+')':'');
     sel.appendChild(opt);
   });
 }
