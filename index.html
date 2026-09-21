@@ -118,7 +118,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <input type="text" id="partner" placeholder="Escribe para buscar..." autocomplete="off">
         <div class="autocomplete-list" id="partner_list"></div>
       </div>
-      <div class="field"><label class="required">Contacto autorizado</label><input type="text" id="contacto_autorizado" placeholder="Nombre"></div>
+      <div class="field">
+        <label class="required">Contacto autorizado</label>
+        <input type="text" id="contacto_autorizado" placeholder="Nombre" autocomplete="off">
+        <div class="autocomplete-list" id="contacto_autorizado_list"></div>
+      </div>
     </div>
 
     <div class="section">
@@ -136,12 +140,20 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <option value="Sin Franja Determinada">Sin Franja Determinada</option>
         </select>
       </div>
-      <div class="field"><label class="required">Dirección de entrega</label><input type="text" id="direccion" placeholder="Calle, número, piso..." autocomplete="street-address"></div>
+      <div class="field">
+        <label class="required">Dirección de entrega</label>
+        <input type="text" id="direccion" placeholder="Calle, número, piso..." autocomplete="off">
+        <div class="autocomplete-list" id="direccion_list"></div>
+      </div>
       <div class="row-2">
         <div class="field"><label class="required">Código postal</label><input type="tel" id="cp" placeholder="28000" maxlength="5" inputmode="numeric"></div>
         <div class="field"><label class="required">Municipio</label><input type="text" id="municipio" placeholder="Ciudad"></div>
       </div>
-      <div class="field"><label class="required">Contacto en obra</label><input type="text" id="contacto_obra" placeholder="Nombre del contacto"></div>
+      <div class="field">
+        <label class="required">Contacto en obra</label>
+        <input type="text" id="contacto_obra" placeholder="Nombre del contacto" autocomplete="off">
+        <div class="autocomplete-list" id="contacto_obra_list"></div>
+      </div>
       <div class="field"><label class="required">Teléfono contacto</label><input type="tel" id="tlfo1" placeholder="600-000-000" maxlength="11" inputmode="tel" oninput="formatTel(this)"></div>
       <div class="field"><label>Calle estrecha</label>
         <div class="radio-group">
@@ -182,7 +194,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </form>
 
   <div class="submit-bar">
-    <button class="submit-btn" id="submitBtn" onclick="enviarPedido()">Guardar pedido</button>
+    <button class="submit-btn" id="submitBtn" onclick="enviarPedido()">Guardar y enviar por email</button>
     <button class="clear-btn" onclick="limpiarFormulario()">Limpiar formulario</button>
   </div>
 
@@ -204,11 +216,12 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "136604898443",
   appId: "1:136604898443:web:77ef9c2b70d8637d79f08e"
 };
+const MAPBOX_TOKEN = "pk.eyJ1IjoiYm1yZXRhaWwiLCJhIjoiY211YjFvbW1tMWJ4aDJ5cjE0d3M0ZTV2NCJ9.ZC9b06f_P9XfNzvP1Whi9A";
 
 import { initializeApp } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/app/+esm';
 import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc,
-  query, orderBy, startAt, endAt, limit, serverTimestamp
+  query, where, orderBy, startAt, endAt, limit, serverTimestamp
 } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
 import { getAuth, signInAnonymously } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/auth/+esm';
 
@@ -293,6 +306,13 @@ async function cargarTiendas(){
 }
 
 /* ---------- autocompletado: clientes (Cliente <-> Partner) ---------- */
+function onClienteSeleccionado(it){
+  document.getElementById('cliente').value=it.razonSocial;
+  document.getElementById('partner').value=it.partner;
+  if(it.contacto) document.getElementById('contacto_autorizado').value=it.contacto;
+  clienteSeleccionado={partner:it.partner,razonSocial:it.razonSocial};
+  cargarSugerenciasCliente(it.partner);
+}
 function renderAutocomplete(listEl, items, onPick){
   listEl.innerHTML='';
   if(!items.length){ listEl.classList.remove('open'); return; }
@@ -314,12 +334,7 @@ async function buscarClientePorNombre(term){
   const snap=await getDocs(q);
   const items=[];
   snap.forEach(function(d){ const c=d.data(); items.push({mainText:c.razonSocial,subText:'Partner: '+d.id,partner:d.id,razonSocial:c.razonSocial,contacto:c.contactoAutorizadoHabitual}); });
-  renderAutocomplete(listEl, items, function(it){
-    document.getElementById('cliente').value=it.razonSocial;
-    document.getElementById('partner').value=it.partner;
-    if(it.contacto) document.getElementById('contacto_autorizado').value=it.contacto;
-    clienteSeleccionado={partner:it.partner,razonSocial:it.razonSocial};
-  });
+  renderAutocomplete(listEl, items, onClienteSeleccionado);
 }
 
 async function buscarClientePorPartner(term){
@@ -335,17 +350,73 @@ async function buscarClientePorPartner(term){
   const q=query(collection(db,'clientes'), orderBy('partner'), startAt(term), endAt(term+''), limit(8));
   const snap=await getDocs(q);
   snap.forEach(function(d){ if(d.id!==term){ const c=d.data(); items.push({mainText:d.id,subText:c.razonSocial,partner:d.id,razonSocial:c.razonSocial,contacto:c.contactoAutorizadoHabitual}); } });
-  renderAutocomplete(listEl, items, function(it){
-    document.getElementById('partner').value=it.partner;
-    document.getElementById('cliente').value=it.razonSocial;
-    if(it.contacto) document.getElementById('contacto_autorizado').value=it.contacto;
-    clienteSeleccionado={partner:it.partner,razonSocial:it.razonSocial};
+  renderAutocomplete(listEl, items, onClienteSeleccionado);
+}
+
+/* ---------- sugerencias de pedidos anteriores del mismo cliente (últimos 5) ---------- */
+let sugerenciasCliente={direcciones:[],contactosAutorizados:[],contactosObra:[]};
+async function cargarSugerenciasCliente(partner){
+  sugerenciasCliente={direcciones:[],contactosAutorizados:[],contactosObra:[]};
+  if(!partner) return;
+  try{
+    const q=query(collection(db,'pedidos'), where('clientePartner','==',partner), orderBy('creadoEn','desc'), limit(5));
+    const snap=await getDocs(q);
+    const vistasDir=new Set(), vistasAut=new Set(), vistasObra=new Set();
+    snap.forEach(function(d){
+      const p=d.data();
+      if(p.direccion && !vistasDir.has(p.direccion)){
+        vistasDir.add(p.direccion);
+        sugerenciasCliente.direcciones.push({mainText:p.direccion,subText:[p.cp,p.municipio].filter(Boolean).join(' '),direccion:p.direccion,cp:p.cp,municipio:p.municipio});
+      }
+      if(p.contactoAutorizado && !vistasAut.has(p.contactoAutorizado)){
+        vistasAut.add(p.contactoAutorizado);
+        sugerenciasCliente.contactosAutorizados.push({mainText:p.contactoAutorizado,contacto:p.contactoAutorizado});
+      }
+      if(p.contactoObra && !vistasObra.has(p.contactoObra)){
+        vistasObra.add(p.contactoObra);
+        sugerenciasCliente.contactosObra.push({mainText:p.contactoObra,subText:p.telefonoObra||'',contacto:p.contactoObra,telefono:p.telefonoObra});
+      }
+    });
+  }catch(err){ console.error(err); }
+}
+function mostrarSugerenciasEnFoco(inputId, listId, getItems, onPick){
+  document.getElementById(inputId).addEventListener('focus', function(){
+    if(this.value) return; // ya hay algo escrito, no tapar con sugerencias de otro pedido
+    const items=getItems();
+    if(items.length) renderAutocomplete(document.getElementById(listId), items, onPick);
   });
 }
 
 function debounce(fn,ms){ let t; return function(...args){ clearTimeout(t); t=setTimeout(()=>fn.apply(null,args),ms); }; }
 const buscarClienteDebounced=debounce(buscarClientePorNombre,300);
 const buscarPartnerDebounced=debounce(buscarClientePorPartner,300);
+
+/* ---------- autocompletado: dirección de entrega (Mapbox, rellena CP/Municipio) ---------- */
+async function buscarDireccion(term){
+  const listEl=document.getElementById('direccion_list');
+  if(!term || term.length<4){ listEl.classList.remove('open'); return; }
+  let data;
+  try{
+    const url='https://api.mapbox.com/geocoding/v5/mapbox.places/'+encodeURIComponent(term)+'.json'
+      +'?access_token='+MAPBOX_TOKEN+'&country=es&language=es&limit=5&types=address';
+    const resp=await fetch(url);
+    data=await resp.json();
+  }catch(err){ console.error(err); return; }
+  const items=(data.features||[]).map(function(f){
+    const ctx=f.context||[];
+    const cp=(ctx.find(c=>c.id.startsWith('postcode.'))||{}).text||'';
+    const municipio=(ctx.find(c=>c.id.startsWith('place.'))||{}).text||'';
+    return {mainText:f.place_name, cp:cp, municipio:municipio};
+  });
+  renderAutocomplete(listEl, items, seleccionarDireccion);
+}
+const buscarDireccionDebounced=debounce(buscarDireccion,400);
+function seleccionarDireccion(it){
+  document.getElementById('direccion').value=it.mainText;
+  if(it.cp) document.getElementById('cp').value=it.cp;
+  if(it.municipio) document.getElementById('municipio').value=it.municipio;
+}
+
 /* ---------- autocompletado: artículos por línea (busca por código, descripción o clave de búsqueda) ---------- */
 const buscarArticuloDebounced=debounce(async function(id,term,campo){
   const listEl=document.getElementById(campo+'_'+id+'_list');
@@ -396,50 +467,114 @@ function validate(){
   if(tel2.value && !validateTel(tel2.value)){ tel2.classList.add('error'); showStatus('El teléfono alternativo debe tener 9 dígitos.', false); return false; }
   const ft=document.getElementById('fecha_transporte');
   if(ft.value){ const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1); const selected=new Date(ft.value+'T00:00:00'); if(selected<yesterday){ ft.classList.add('error'); showStatus('La fecha de transporte no puede ser anterior a ayer.', false); return false; } }
-  if(getLineas().length===0){ showStatus('Añade al menos una línea de artículo.', false); return false; }
+  const lineas=getLineas();
+  if(lineas.length===0){ showStatus('Añade al menos una línea de artículo.', false); return false; }
+  let faltaCantidad=false;
+  document.querySelectorAll('[id^="line-"]').forEach(function(div){
+    const id=div.id.replace('line-','');
+    const art=f('art_'+id), uni=f('uni_'+id);
+    const uniEl=document.getElementById('uni_'+id);
+    if(art && (!uni || Number(uni)<=0)){ uniEl.classList.add('error'); faltaCantidad=true; }
+    else if(uniEl) uniEl.classList.remove('error');
+  });
+  if(faltaCantidad){ showStatus('Cada artículo necesita una cantidad mayor que 0.', false); return false; }
   return true;
+}
+
+/* ---------- correo del pedido (mailto, lo envía el propio comercial) ---------- */
+function valorLegible(v){
+  if(v===null||v===undefined||v==='') return '-';
+  if(v===true) return 'Sí';
+  if(v===false) return 'No';
+  return v;
+}
+function construirCuerpoPedido(p){
+  const hoy=new Date().toLocaleDateString('es-ES');
+  let out='PEDIDO - '+hoy+'\n'+'='.repeat(52)+'\n\n';
+  out+='DATOS DEL PEDIDO\n';
+  out+='Comercial: '+valorLegible(p.comercialNombre)+'\n';
+  out+='Tienda: '+valorLegible(p.tiendaNombre)+'\n';
+  out+='Datos importantes: '+valorLegible(p.datosImportantes)+'\n\n';
+  out+='DATOS DEL CLIENTE\n';
+  out+='Cliente: '+valorLegible(p.clienteRazonSocial)+'\n';
+  out+='Partner: '+valorLegible(p.clientePartner)+'\n';
+  out+='Contacto autorizado: '+valorLegible(p.contactoAutorizado)+'\n\n';
+  out+='DATOS DE LA OBRA / ENTREGA\n';
+  out+='Fecha transporte: '+valorLegible(p.fechaTransporte)+'\n';
+  out+='Franja horaria: '+valorLegible(p.franjaHoraria)+'\n';
+  out+='Dirección: '+valorLegible(p.direccion)+'\n';
+  out+='CP: '+valorLegible(p.cp)+'\n';
+  out+='Municipio: '+valorLegible(p.municipio)+'\n';
+  out+='Calle estrecha: '+valorLegible(p.calleEstrecha)+'\n';
+  out+='Grúa 15m: '+valorLegible(p.grua15m)+'\n';
+  out+='Contacto en obra: '+valorLegible(p.contactoObra)+' - Tel: '+valorLegible(p.telefonoObra)+'\n';
+  out+='Contacto alternativo: '+valorLegible(p.contactoAlternativo)+' - Tel: '+valorLegible(p.telefonoAlternativo)+'\n\n';
+  out+='FORMA DE PAGO\n';
+  out+='Forma de pago: '+valorLegible(p.formaPago)+'\n';
+  out+='Cantidad a cobrar: '+valorLegible(p.cantidadCobrar)+'\n\n';
+  out+='LÍNEAS DE PEDIDO\n';
+  (p.lineas||[]).forEach(function(l){
+    out+='- '+(l.articuloCodigo||'')+' | '+(l.descripcion||'')+' | '+(l.unidades||'')+' uds | Dto '+(l.descuentoPct||0)+'%\n';
+  });
+  return out;
+}
+function abrirCorreoPedido(p){
+  const asunto='Pedido - '+(p.comercialNombre||'')+' | '+(p.direccion||'')+' | '+(p.fechaTransporte||'');
+  const cuerpo=construirCuerpoPedido(p);
+  const destino=p.tiendaEmailDestino||'';
+  window.location.href='mailto:'+destino+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(cuerpo);
 }
 
 /* ---------- guardado en Firestore ---------- */
 window.enviarPedido=async function enviarPedido(){
   if(!validate()) return;
   const btn=document.getElementById('submitBtn');
+  const tiendaSel=tiendasCache.find(a=>a.id===f('tienda'))||{};
+  const comercialSel=document.getElementById('comercial');
+  const pedido={
+    tenant:'PENDIENTE', // se rellena con datos reales del comercial autenticado más adelante
+    comercialId:f('comercial'),
+    comercialNombre:comercialSel.options[comercialSel.selectedIndex]?.textContent||'',
+    tiendaId:f('tienda'),
+    tiendaNombre:tiendaSel.nombre||'',
+    tiendaEmailDestino:tiendaSel.emailDestino||'',
+    datosImportantes:f('datos_importantes'),
+    clientePartner:f('partner'),
+    clienteRazonSocial:f('cliente'),
+    contactoAutorizado:f('contacto_autorizado'),
+    fechaTransporte:f('fecha_transporte'),
+    franjaHoraria:f('franja'),
+    direccion:f('direccion'), cp:f('cp'), municipio:f('municipio'),
+    calleEstrecha:getRadio('calle_estrecha')||null,
+    grua15m:getRadio('grua')||null,
+    contactoObra:f('contacto_obra'), telefonoObra:f('tlfo1'),
+    contactoAlternativo:f('contacto_alt')||null, telefonoAlternativo:f('tlfo2')||null,
+    formaPago:f('forma_pago'),
+    cantidadCobrar:f('cantidad')?Number(f('cantidad')):null,
+    lineas:getLineas(),
+    estadoEnvioEmail:tiendaSel.emailDestino?'enviado_por_comercial':'sin_email_destino',
+    creadoEn:serverTimestamp()
+  };
+
+  // Abrir el correo YA, dentro del mismo clic (sin esperar a Firestore):
+  // varios navegadores bloquean en silencio la apertura de mailto: si
+  // ha pasado tiempo asíncrono (p.ej. el guardado) desde el clic original.
+  if(pedido.tiendaEmailDestino) abrirCorreoPedido(pedido);
+
   btn.disabled=true; btn.textContent='Guardando...';
   try{
-    const tiendaSel=tiendasCache.find(a=>a.id===f('tienda'))||{};
-    const comercialSel=document.getElementById('comercial');
-    const pedido={
-      tenant:'PENDIENTE', // se rellena con datos reales del comercial autenticado más adelante
-      comercialId:f('comercial'),
-      comercialNombre:comercialSel.options[comercialSel.selectedIndex]?.textContent||'',
-      tiendaId:f('tienda'),
-      tiendaNombre:tiendaSel.nombre||'',
-      tiendaEmailDestino:tiendaSel.emailDestino||'',
-      datosImportantes:f('datos_importantes'),
-      clientePartner:f('partner'),
-      clienteRazonSocial:f('cliente'),
-      contactoAutorizado:f('contacto_autorizado'),
-      fechaTransporte:f('fecha_transporte'),
-      franjaHoraria:f('franja'),
-      direccion:f('direccion'), cp:f('cp'), municipio:f('municipio'),
-      calleEstrecha:getRadio('calle_estrecha')||null,
-      grua15m:getRadio('grua')||null,
-      contactoObra:f('contacto_obra'), telefonoObra:f('tlfo1'),
-      contactoAlternativo:f('contacto_alt')||null, telefonoAlternativo:f('tlfo2')||null,
-      formaPago:f('forma_pago'),
-      cantidadCobrar:f('cantidad')?Number(f('cantidad')):null,
-      lineas:getLineas(),
-      estadoEnvioEmail:'pendiente',
-      creadoEn:serverTimestamp()
-    };
     await addDoc(collection(db,'pedidos'), pedido);
-    showStatus('Pedido guardado correctamente.', true);
     limpiarFormulario(true);
+    if(pedido.tiendaEmailDestino){
+      showStatus('Pedido guardado. Revisa tu correo y pulsa Enviar.', true);
+    } else {
+      showStatus('Pedido guardado, pero esta tienda todavía no tiene email de transporte configurado. Avisa a transporte manualmente.', false);
+    }
   }catch(err){
     console.error(err);
     showStatus('Error al guardar el pedido: '+err.message, false);
   }finally{
-    btn.disabled=false; btn.textContent='Guardar pedido';
+    btn.disabled=false; btn.textContent='Guardar y enviar por email';
   }
 }
 
@@ -478,6 +613,15 @@ function setFechaAuto(){
   addLine();
   document.getElementById('cliente').addEventListener('input', function(){ buscarClienteDebounced(this.value); });
   document.getElementById('partner').addEventListener('input', function(){ buscarPartnerDebounced(this.value); });
+  document.getElementById('direccion').addEventListener('input', function(){ buscarDireccionDebounced(this.value); });
+  mostrarSugerenciasEnFoco('direccion','direccion_list',()=>sugerenciasCliente.direcciones,seleccionarDireccion);
+  mostrarSugerenciasEnFoco('contacto_autorizado','contacto_autorizado_list',()=>sugerenciasCliente.contactosAutorizados,function(it){
+    document.getElementById('contacto_autorizado').value=it.contacto;
+  });
+  mostrarSugerenciasEnFoco('contacto_obra','contacto_obra_list',()=>sugerenciasCliente.contactosObra,function(it){
+    document.getElementById('contacto_obra').value=it.contacto;
+    if(it.telefono) document.getElementById('tlfo1').value=it.telefono;
+  });
   document.addEventListener('click', function(e){
     document.querySelectorAll('.autocomplete-list.open').forEach(function(list){
       if(!list.contains(e.target) && e.target.id!==list.id.replace('_list','')) list.classList.remove('open');
