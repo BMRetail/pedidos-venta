@@ -72,6 +72,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .status-banner.show{display:block}
 .status-banner.ok{background:#e6f4ea;color:var(--bm-green-dark);border:1px solid #b7ddc3}
 .status-banner.err{background:var(--bm-red-light);color:var(--bm-red);border:1px solid #f0bcbe}
+#loginBox{display:none}
+.sesion-bar{display:none;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--bm-blue-light);font-size:12px;color:var(--bm-blue)}
+.sesion-bar span.salir{font-weight:700;cursor:pointer;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -86,7 +89,26 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
   <div id="statusBanner" class="status-banner"></div>
 
-  <form class="form-body" id="pedidoForm" onsubmit="return false">
+  <!-- Acceso con usuario (15/10/2026): mismo usuario que el Rutero Comercial -->
+  <div class="sesion-bar" id="sesionBar"><span>Conectado como <b id="sesionNombre"></b></span><span class="salir" onclick="cerrarSesion()">Cerrar sesión</span></div>
+  <div id="loginBox">
+    <div class="section">
+      <div class="section-title">Acceso</div>
+      <div class="field"><label>Correo de empresa</label>
+        <input type="email" id="login_email" placeholder="nombre.apellido@bigmat.biz" autocomplete="username"></div>
+      <div class="field"><label>Contraseña</label>
+        <input type="password" id="login_pass" autocomplete="current-password" onkeydown="if(event.key==='Enter') entrar()"></div>
+      <div id="login_msg" style="font-size:12px;min-height:18px;color:var(--bm-red)"></div>
+    </div>
+    <div class="submit-bar">
+      <button type="button" class="submit-btn" id="login_btn" onclick="entrar()">Entrar</button>
+      <button type="button" class="clear-btn" onclick="olvideContrasena()">He olvidado mi contraseña</button>
+      <div style="font-size:12px;color:#667;line-height:1.4">Es el mismo usuario que el del Rutero Comercial. Se pide solo la primera vez en este dispositivo.
+        Si es tu primera vez, escribe tu correo y pulsa «He olvidado mi contraseña» para crear la tuya (revisa también el correo no deseado).</div>
+    </div>
+  </div>
+
+  <form class="form-body" id="pedidoForm" onsubmit="return false" style="display:none">
 
     <div class="section">
       <div class="section-title">Datos del pedido</div>
@@ -194,7 +216,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
   </form>
 
-  <div class="submit-bar">
+  <div class="submit-bar" id="barraPedido" style="display:none">
     <button class="submit-btn" id="submitBtn" onclick="enviarPedido()">Guardar pedido</button>
     <button class="clear-btn" onclick="limpiarFormulario()">Limpiar formulario</button>
   </div>
@@ -224,11 +246,13 @@ import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc,
   query, where, orderBy, startAt, endAt, limit, serverTimestamp
 } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
-import { getAuth, signInAnonymously } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/auth/+esm';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/auth/+esm';
+import { setDoc } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
 
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
 const auth = getAuth(app);
+auth.languageCode = 'es';
 
 window.lineCount = 0;
 let tiendasCache = [];
@@ -630,6 +654,7 @@ window.limpiarFormulario=function limpiarFormulario(skipConfirm){
   document.querySelectorAll('.error').forEach(function(el){ el.classList.remove('error'); });
   document.getElementById('articulos-container').innerHTML='';
   lineCount=0; addLine();
+  fijarComercialDelUsuario();  // el comercial del usuario se mantiene tras limpiar
   document.getElementById('statusBanner').classList.remove('show');
   clienteSeleccionado=null;
   setFechaAuto();
@@ -645,14 +670,87 @@ function setFechaAuto(){
 }
 
 /* ---------- init ---------- */
-(async function init(){
-  try{
-    await signInAnonymously(auth);
-  }catch(err){
-    console.error(err);
-    showStatus('No se pudo conectar con el servidor. Recarga la página.', false);
-    return;
+/* ---------- acceso con usuario (15/10/2026, el mismo que el Rutero Comercial) ----------
+   Perfil en usuarios/{correo}: rol, plt y activo. Un comercial solo puede hacer
+   pedidos a su nombre (el desplegable Comercial queda fijado); supervisión y
+   administración pueden elegir. Rossy y Li Lin son administración sin perfil. */
+const ADMINS=['rossy.cuenca@bigmat.biz','li.lin@bigmat.biz'];
+let perfilActual=null, mensajeLogin='', datosCargados=false;
+function msgLogin(t, ok){ const el=document.getElementById('login_msg'); el.textContent=t||''; el.style.color= ok ? 'var(--bm-green-dark)' : 'var(--bm-red)'; }
+function mostrarLogin(){
+  document.getElementById('loginBox').style.display='block';
+  document.getElementById('pedidoForm').style.display='none';
+  document.getElementById('barraPedido').style.display='none';
+  document.getElementById('sesionBar').style.display='none';
+  if(mensajeLogin){ msgLogin(mensajeLogin); mensajeLogin=''; }
+}
+const ERRORES_ACCESO={'auth/invalid-credential':'Correo o contraseña incorrectos.','auth/wrong-password':'Correo o contraseña incorrectos.',
+  'auth/user-not-found':'Correo o contraseña incorrectos.','auth/invalid-email':'El correo no es válido.','auth/missing-password':'Escribe tu contraseña.',
+  'auth/too-many-requests':'Demasiados intentos. Espera unos minutos o pulsa «He olvidado mi contraseña».',
+  'auth/network-request-failed':'Sin conexión. Revisa la cobertura e inténtalo de nuevo.','auth/user-disabled':'Tu usuario está desactivado. Contacta con Rossy Cuenca.'};
+window.entrar = async function entrar(){
+  const email=f('login_email').toLowerCase(), pass=document.getElementById('login_pass').value;
+  if(!email){ msgLogin('Escribe tu correo de empresa.'); return; }
+  const btn=document.getElementById('login_btn'); btn.disabled=true; btn.textContent='Entrando…';
+  try{ await signInWithEmailAndPassword(auth, email, pass); msgLogin(''); document.getElementById('login_pass').value=''; }
+  catch(e){ msgLogin(ERRORES_ACCESO[e.code] || ('No se pudo entrar: '+e.message)); }
+  finally{ btn.disabled=false; btn.textContent='Entrar'; }
+};
+window.olvideContrasena = async function olvideContrasena(){
+  const email=f('login_email').toLowerCase();
+  if(!email){ msgLogin('Escribe primero tu correo de empresa y vuelve a pulsar «He olvidado mi contraseña».'); return; }
+  try{ await sendPasswordResetEmail(auth, email); msgLogin('Si ese correo tiene usuario, te hemos enviado un enlace para crear tu contraseña. Revisa también el correo no deseado.', true); }
+  catch(e){ msgLogin(ERRORES_ACCESO[e.code] || ('No se pudo enviar el correo: '+e.message)); }
+};
+window.cerrarSesion = async function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión en este dispositivo? También se cerrará en el Rutero Comercial.')) return;
+  await signOut(auth); location.reload();
+};
+async function alEntrar(user){
+  const email=(user.email||'').toLowerCase();
+  let p=null;
+  try{ const s=await getDoc(doc(db,'usuarios',email)); if(s.exists()) p=s.data(); }catch(e){ console.error('perfil', e); }
+  if(ADMINS.includes(email)) p=Object.assign({nombre:email}, p||{}, {rol:'admin', activo:true});
+  if(!p || p.activo!==true){
+    mensajeLogin='Tu usuario no tiene acceso a esta aplicación. Contacta con Rossy Cuenca (rossy.cuenca@bigmat.biz).';
+    await signOut(auth); return;
   }
+  perfilActual=Object.assign({email:email}, p);
+  document.getElementById('loginBox').style.display='none';
+  document.getElementById('pedidoForm').style.display='';
+  document.getElementById('barraPedido').style.display='';
+  document.getElementById('sesionBar').style.display='flex';
+  document.getElementById('sesionNombre').textContent=p.nombre||email;
+  try{
+    const ahora=new Date().toISOString(), ua=navigator.userAgent.replace(/\s+/g,' ').slice(0,160);
+    const k=Array.from(ua).reduce(function(h,c){ return (h*31+c.charCodeAt(0))>>>0; },7).toString(36);
+    const datos={email:email, nombre:p.nombre||'', ultimo:ahora, ultimaApp:'pedidos', dispositivos:{}}; datos.dispositivos[k]={ua:ua, ultimo:ahora};
+    const ref=doc(db,'accesos',email);
+    if(!(await getDoc(ref)).exists()) datos.primero=ahora;
+    await setDoc(ref, datos, {merge:true});
+  }catch(e){ console.error('acceso', e); }
+  if(!datosCargados){
+    datosCargados=true;
+    try{ await Promise.all([cargarComerciales(), cargarTiendas()]); }
+    catch(err){ console.error(err); showStatus('No se pudieron cargar Comerciales/Tiendas desde Firestore: '+err.message, false); }
+  }
+  fijarComercialDelUsuario();
+}
+function fijarComercialDelUsuario(){
+  const sel=document.getElementById('comercial');
+  const plt=((perfilActual && perfilActual.plt) || '').toUpperCase();
+  if(perfilActual && perfilActual.rol==='comercial' && plt){
+    if(!Array.from(sel.options).some(function(o){ return o.value===plt; })){
+      const opt=document.createElement('option'); opt.value=plt; opt.textContent=perfilActual.nombre||plt; sel.appendChild(opt);
+    }
+    sel.value=plt; sel.disabled=true;   // un comercial hace los pedidos a su nombre
+  }else{
+    sel.disabled=false;
+    if(plt && !sel.value && Array.from(sel.options).some(function(o){ return o.value===plt; })) sel.value=plt;
+  }
+}
+
+(async function init(){
   setFechaAuto();
   setMinDate();
   addLine();
@@ -672,12 +770,10 @@ function setFechaAuto(){
       if(!list.contains(e.target) && e.target.id!==list.id.replace('_list','')) list.classList.remove('open');
     });
   });
-  try{
-    await Promise.all([cargarComerciales(), cargarTiendas()]);
-  }catch(err){
-    console.error(err);
-    showStatus('No se pudieron cargar Comerciales/Tiendas desde Firestore: '+err.message, false);
-  }
+  onAuthStateChanged(auth, function(user){
+    if(!user || user.isAnonymous){ perfilActual=null; mostrarLogin(); return; }
+    alEntrar(user);
+  });
 })();
 </script>
 </body>
