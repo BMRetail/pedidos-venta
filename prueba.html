@@ -730,6 +730,7 @@ window.enviarPedido=async function enviarPedido(){
     origen:origenComercial[f('comercial')]||'4',
     estadoCarga:'pendiente',
     prueba:true,
+    ...datosTiempo(),
     contactoObra:f('contacto_obra'), telefonoObra:f('tlfo1'),
     contactoAlternativo:f('contacto_alt')||null, telefonoAlternativo:f('tlfo2')||null,
     formaPago:f('forma_pago'),
@@ -872,13 +873,14 @@ function fijarComercialDelUsuario(){
    Datos de LN que sube el importador (import_transporte.py):
      contactosLN/{partner}   contactos activos (no caducados)
      obrasLN/{partner}       obras (direcciones FO) servidas al cliente
-     stockTransporte/b_XX    disponible y en camino en los 4 almacenes
+     stockTransporte/b_XX    disponible y en camino en los almacenes de transporte
    ============================================================ */
 const ALMACENES_TRANSPORTE=[
   {w:'A32A', n:'Getafe 2',   c:[-3.692618,40.294]},     // c/ Hipatia 2, 28906 Getafe
   {w:'A06A', n:'Alcorcón',   c:[-3.83633,40.359832]},   // Av. América 34, 28922 Alcorcón
   {w:'A10A', n:'Alcobendas', c:[-3.650272,40.53155]},   // c/ Metalurgia 11, 28108 Alcobendas
   {w:'A11A', n:'Alcalá',     c:[-3.385122,40.491377]},  // c/ Louis Pasteur 15, 28806 Alcalá de Henares
+  {w:'A34A', n:'Illescas',   c:[-3.825695,40.148489]},  // Av. de las Naciones 17, 45200 Illescas
 ];
 const NOMBRE_ALM={}; ALMACENES_TRANSPORTE.forEach(a=>NOMBRE_ALM[a.w]=a.n);
 const FRANJAS_LN={'001':[8,11],'002':[11,14],'003':[14,16]};
@@ -1080,7 +1082,7 @@ function tarjetaCarga(p, stock){
       '<div><label>Dirección LN (FO…)</label><input id="pc_dir_'+p.id+'" value="'+esc(p.obraLN||'')+'" placeholder="Código de la obra en LN"></div>'+
       '<div><label>Contacto LN (CON…)</label><input id="pc_con_'+p.id+'" value="'+esc(p.contactoLN||'')+'" placeholder="Código del contacto en LN"></div>'+
     '</div>'+
-    '<details style="margin-top:8px"><summary>Líneas y stock en los 4 almacenes ('+lineas.length+' líneas)</summary>'+tabla+
+    '<details style="margin-top:8px"><summary>Líneas y stock por almacén ('+lineas.length+' líneas)</summary>'+tabla+
       (lineas.some(l=>l.articuloCodigo===ARTICULO_GRUA)?'<div class="hint">+ TVGRU15M × '+lineas.find(l=>l.articuloCodigo===ARTICULO_GRUA).unidades+' (grúa)</div>':'')+'</details>'+
     '<button type="button" class="submit-btn" style="margin-top:10px" onclick="descargarCSV(\''+p.id+'\')">Descargar CSV y marcar como cargado en LN</button>'+
     '<div class="hint">⚠ <b>Carga el CSV en LN tal cual se descarga, sin abrirlo con Excel.</b> Excel muestra la franja 001 como «1» y, si lo guardas, LN da error. Para revisarlo, ábrelo con el Bloc de notas; si lo abres con Excel, ciérralo con «No guardar».</div>'+
@@ -1107,6 +1109,19 @@ window.descargarCSV=async function descargarCSV(id){
     document.getElementById('pc_'+id).outerHTML='<div class="ped-carga"><span class="tag verde">Cargado en LN</span> '+esc(p.clienteRazonSocial)+' · CSV descargado.</div>';
   }catch(e){ console.error(e); alert('El CSV se ha descargado, pero no se pudo marcar como cargado: '+e.message); }
 };
+
+/* ---------- medición de tiempos (31/10/2026): cuándo empieza el comercial a rellenar el pedido ---------- */
+let inicioFormulario=null;
+document.getElementById('pedidoForm').addEventListener('input', function(){ if(!inicioFormulario) inicioFormulario=new Date(); }, true);
+document.getElementById('pedidoForm').addEventListener('change', function(){ if(!inicioFormulario) inicioFormulario=new Date(); }, true);
+function datosTiempo(){
+  const fin=new Date();
+  return {inicioFormulario: inicioFormulario?inicioFormulario.toISOString():null,
+          segundosFormulario: inicioFormulario?Math.round((fin-inicioFormulario)/1000):null};
+}
+// al limpiar el formulario (también tras guardar) empieza a contar de nuevo el siguiente pedido
+const _limpiarOriginal=window.limpiarFormulario;
+window.limpiarFormulario=function(skip){ _limpiarOriginal(skip); inicioFormulario=null; };
 
 (async function init(){
   setFechaAuto();
