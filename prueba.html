@@ -1083,6 +1083,7 @@ function tarjetaCarga(p, stock){
     '<details style="margin-top:8px"><summary>Líneas y stock en los 4 almacenes ('+lineas.length+' líneas)</summary>'+tabla+
       (lineas.some(l=>l.articuloCodigo===ARTICULO_GRUA)?'<div class="hint">+ TVGRU15M × '+lineas.find(l=>l.articuloCodigo===ARTICULO_GRUA).unidades+' (grúa)</div>':'')+'</details>'+
     '<button type="button" class="submit-btn" style="margin-top:10px" onclick="descargarCSV(\''+p.id+'\')">Descargar CSV y marcar como cargado en LN</button>'+
+    '<div class="hint">⚠ <b>Carga el CSV en LN tal cual se descarga, sin abrirlo con Excel.</b> Excel muestra la franja 001 como «1» y, si lo guardas, LN da error. Para revisarlo, ábrelo con el Bloc de notas; si lo abres con Excel, ciérralo con «No guardar».</div>'+
   '</div>';
 }
 function csvPedido(p, alm, fr, dir, con){
