@@ -537,8 +537,12 @@ async function buscarDireccion(term){
     const municipio=(ctx.find(c=>c.id.startsWith('place.'))||{}).text||'';
     return {mainText:f.place_name, cp:cp, municipio:municipio, centro:f.center};
   });
-  const t=term.toLowerCase();
-  const obras=obrasCliente.filter(o=>(o.obra+' '+o.cp+' '+o.mun+' '+o.cod).toLowerCase().includes(t)).slice(0,5).map(itemObra);
+  // 12/11/2026: se busca palabra por palabra (sin tildes ni «calle/c/avda/de...»), en cualquier orden:
+  // «C/ ESCOSURA 4 MADRID» encuentra «C/ ESCOSURA 4 · 28015 · MADRID»
+  const norm=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  const VACIAS={c:1,cl:1,calle:1,av:1,avd:1,avda:1,avenida:1,pza:1,plaza:1,pl:1,de:1,del:1,la:1,el:1,los:1,las:1,n:1,no:1,num:1,s:1,sn:1};
+  const pals=norm(term).split(' ').filter(w=>w && !VACIAS[w]);
+  const obras=pals.length?obrasCliente.filter(o=>{ const h=' '+norm(o.obra+' '+o.cp+' '+o.mun+' '+o.cod)+' '; return pals.every(w=>h.includes(' '+w)); }).slice(0,5).map(itemObra):[];
   renderAutocomplete(listEl, obras.concat(items.map(x=>Object.assign(x,{subText:'Dirección nueva (sin registrar en LN)'}))), function(it){ it.obraLN ? elegirObra(it) : seleccionarDireccion(it); });
 }
 const buscarDireccionDebounced=debounce(buscarDireccion,400);
