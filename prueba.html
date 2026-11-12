@@ -343,7 +343,7 @@ window.addLine=function addLine(){
     '<div class="articulo-line-top">'+
       '<div class="field" style="position:relative">'+
         '<label>Artículo</label>'+
-        '<input type="text" id="art_'+id+'" placeholder="Código..." oninput="buscarArticulo('+id+',this.value,\'art\')">'+
+        '<input type="text" id="art_'+id+'" placeholder="Código..." oninput="buscarArticulo('+id+',this.value,\'art\',this)">'+
         '<div class="autocomplete-list" id="art_'+id+'_list"></div>'+
       '</div>'+
       '<div class="field"><label>Unidades</label><input type="number" id="uni_'+id+'" placeholder="0" min="1" step="1" inputmode="numeric" oninput="programarAlmacen()"></div>'+
@@ -352,7 +352,7 @@ window.addLine=function addLine(){
     '</div>'+
     '<div class="field" style="margin-bottom:0;position:relative">'+
       '<label>Descripción</label>'+
-      '<input type="text" id="desc_'+id+'" placeholder="Escribe para buscar por descripción..." oninput="buscarArticulo('+id+',this.value,\'desc\')">'+
+      '<input type="text" id="desc_'+id+'" placeholder="Escribe para buscar por descripción..." oninput="buscarArticulo('+id+',this.value,\'desc\',this)">'+
       '<div class="autocomplete-list" id="desc_'+id+'_list"></div>'+
     '</div>';
   c.appendChild(div);
@@ -551,8 +551,10 @@ function seleccionarDireccion(it){
 }
 
 /* ---------- autocompletado: artículos por línea (busca por código, descripción o clave de búsqueda) ---------- */
-const buscarArticuloDebounced=debounce(async function(id,term,campo){
-  const listEl=document.getElementById(campo+'_'+id+'_list');
+const buscarArticuloDebounced=debounce(async function(id,term,campo,campoEl){
+  // la línea es la del campo en el que se escribe (no se busca por número) · 12/11/2026
+  const linea=(campoEl && campoEl.closest('.articulo-line')) || document.getElementById('line-'+id);
+  const listEl=linea.querySelector('.autocomplete-list[id$="_list"][id^="'+campo+'_"]') || document.getElementById(campo+'_'+id+'_list');
   if(!term){ listEl.classList.remove('open'); return; }
   const termLower=term.toLowerCase();
   const vistos=new Set();
@@ -574,13 +576,15 @@ const buscarArticuloDebounced=debounce(async function(id,term,campo){
   ];
   const resultados=await Promise.all(consultas.map(q=>getDocs(q)));
   resultados.forEach(snap=>snap.forEach(agregar));
+  // respuesta vieja: el campo ya no tiene ese texto o se está escribiendo en otro → no se abre la lista
+  if(campoEl && (campoEl.value!==term || document.activeElement!==campoEl)) return;
   renderAutocomplete(listEl, items.slice(0,10), function(it){
-    document.getElementById('art_'+id).value=it.codigo;
-    document.getElementById('desc_'+id).value=it.descripcion||'';
+    linea.querySelector('input[id^="art_"]').value=it.codigo;
+    linea.querySelector('input[id^="desc_"]').value=it.descripcion||'';
     programarAlmacen();
   });
 },300);
-window.buscarArticulo=function(id,term,campo){ buscarArticuloDebounced(id,term,campo||'art'); };
+window.buscarArticulo=function(id,term,campo,campoEl){ buscarArticuloDebounced(id,term,campo||'art',campoEl); };
 
 
 
@@ -1142,6 +1146,12 @@ window.limpiarFormulario=function(skip){ _limpiarOriginal(skip); inicioFormulari
   document.addEventListener('click', function(e){
     document.querySelectorAll('.autocomplete-list.open').forEach(function(list){
       if(!list.contains(e.target) && e.target.id!==list.id.replace('_list','')) list.classList.remove('open');
+    });
+  });
+  // al entrar en un campo se cierran las listas de los demás (12/11/2026)
+  document.addEventListener('focusin', function(e){
+    document.querySelectorAll('.autocomplete-list.open').forEach(function(list){
+      if(e.target.id!==list.id.replace('_list','') && !list.contains(e.target)) list.classList.remove('open');
     });
   });
   onAuthStateChanged(auth, function(user){
