@@ -1090,8 +1090,33 @@ function tarjetaCarga(p, stock){
       (lineas.some(l=>l.articuloCodigo===ARTICULO_GRUA)?'<div class="hint">+ TVGRU15M × '+lineas.find(l=>l.articuloCodigo===ARTICULO_GRUA).unidades+' (grúa)</div>':'')+'</details>'+
     '<button type="button" class="submit-btn" style="margin-top:10px" onclick="descargarCSV(\''+p.id+'\')">Descargar CSV y marcar como cargado en LN</button>'+
     '<div class="hint">⚠ <b>Carga el CSV en LN tal cual se descarga, sin abrirlo con Excel.</b> Excel muestra la franja 001 como «1» y, si lo guardas, LN da error. Para revisarlo, ábrelo con el Bloc de notas; si lo abres con Excel, ciérralo con «No guardar».</div>'+
+    // 12/11/2026: si transporte crea el pedido en LN sin CSV, lo marca aquí con el motivo
+    '<details class="carga-manual" style="margin-top:10px;border-top:1px dashed var(--bm-blue-light);padding-top:8px"><summary style="cursor:pointer;font-weight:700;color:var(--bm-blue)">✋ Pedido creado en LN sin CSV</summary>'+
+      '<div class="fila" style="margin-top:6px">'+
+        '<div><label>Motivo</label><select id="pc_mot_'+p.id+'" onchange="document.getElementById(\'pc_motx_'+p.id+'\').style.display=this.value===\'Otro\'?\'\':\'none\'">'+
+          '<option value="Sin permiso para crear la dirección">Sin permiso para crear la dirección</option><option value="Otro">Otro motivo…</option></select>'+
+          '<input id="pc_motx_'+p.id+'" style="display:none;margin-top:4px;width:100%;box-sizing:border-box" placeholder="Escribe el motivo" maxlength="200"></div>'+
+        '<div><label>Nº de OV en LN (opcional)</label><input id="pc_ov_'+p.id+'" placeholder="Ej.: A32000123" maxlength="20"></div>'+
+      '</div>'+
+      '<button type="button" class="clear-btn" style="margin-top:8px;width:100%;font-weight:700;color:var(--bm-blue);border-color:var(--bm-blue)" onclick="marcarManual(\''+p.id+'\')">Marcar como creado sin CSV</button>'+
+    '</details>'+
   '</div>';
 }
+window.marcarManual=async function marcarManual(id){
+  const p=pedidosCarga.find(x=>x.id===id); if(!p) return;
+  let mot=document.getElementById('pc_mot_'+id).value;
+  if(mot==='Otro'){ mot=document.getElementById('pc_motx_'+id).value.trim(); if(!mot){ alert('Escribe el motivo.'); return; } }
+  const ov=document.getElementById('pc_ov_'+id).value.trim().toUpperCase();
+  if(!confirm('¿Marcar el pedido de '+(p.clienteRazonSocial||'')+' como creado en LN sin CSV?\nSale de la bandeja.')) return;
+  const dir=document.getElementById('pc_dir_'+id).value.trim().toUpperCase(), con=document.getElementById('pc_con_'+id).value.trim().toUpperCase();
+  try{
+    await updateDoc(doc(db,'pedidos',id), {estadoCarga:'cargado', cargaManual:true, motivoManual:mot, ovLN:ov||null,
+      cargadoPor:perfilActual.email, cargadoEn:serverTimestamp(),
+      almacenCarga:document.getElementById('pc_alm_'+id).value, franjaLN:document.getElementById('pc_fr_'+id).value||null,
+      direccionLNCarga:dir||null, contactoLNCarga:con||null});
+    document.getElementById('pc_'+id).outerHTML='<div class="ped-carga"><span class="tag verde">Pedido creado en LN sin CSV</span> '+esc(p.clienteRazonSocial)+' · '+esc(mot)+(ov?' · OV '+esc(ov):'')+'</div>';
+  }catch(e){ console.error(e); alert('No se pudo marcar: '+e.message); }
+};
 function csvPedido(p, alm, fr, dir, con){
   const cab='Departamento;Tipo de Orden;Cliente;Almacén;Contacto;Origen;Franja;Artículo;Cantidad;Direección de Entrega';
   const filas=(p.lineas||[]).filter(l=>l.articuloCodigo&&l.unidades>0).map(l=>[p.departamento||'', p.tipoOrden||'P4', sinCeros(p.clientePartner), alm, con, p.origen||'4', fr, sinCeros(l.articuloCodigo), l.unidades, dir].join(';'));
