@@ -1259,17 +1259,18 @@ async function cargarSeguimiento(){
     let meta=null; try{ const m=await getDoc(doc(db,'stockTransporte','_metaOV')); meta=m.exists()&&m.data().actualizado?m.data().actualizado.toDate():null; }catch(e){}
     document.getElementById('segInfo').textContent='Pedidos cargados en los últimos 14 días.'+(meta?' LN consultado a las '+meta.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' del '+meta.toLocaleDateString('es-ES')+' (se actualiza cada hora, de lunes a viernes de 8 a 18 h).':'');
     montarFiltroSeg('segTienda','Tienda',[...new Set(pedidosSeg.map(p=>p.tiendaNombre||'—'))].sort());
-    montarFiltroSeg('segEstado','Estado',Object.keys(ESTADOS_SEG).map(k=>ESTADOS_SEG[k]));
+    montarFiltroSeg('segEstado','Estado',Object.keys(ESTADOS_SEG).map(k=>ESTADOS_SEG[k]),'Todos');
     pintarSeguimiento();
   }catch(e){ console.error(e); tb.innerHTML='<tr><td colspan="5">No se pudo cargar el seguimiento: '+esc(e.message)+'</td></tr>'; }
 }
-function montarFiltroSeg(id, nombre, valores){
+function montarFiltroSeg(id, nombre, valores, todos){
+  todos=todos||'Todas';
   const dd=document.getElementById(id), box=dd.querySelector('div');
   box.innerHTML='<span class="dd-todas" data-a="1">Todas</span><span class="dd-todas" data-a="0">Ninguna</span>'+valores.map(v=>'<label><input type="checkbox" checked value="'+esc(v)+'"> '+esc(v)+'</label>').join('');
-  const res=()=>{ const c=[...box.querySelectorAll('input')], on=c.filter(x=>x.checked); dd.querySelector('summary').textContent=nombre+': '+(on.length===c.length?'Todas':on.length?on.map(x=>x.value).join(', '):'Ninguna'); pintarSeguimiento(); };
+  const res=()=>{ const c=[...box.querySelectorAll('input')], on=c.filter(x=>x.checked); dd.querySelector('summary').textContent=nombre+': '+(on.length===c.length?todos:on.length?on.map(x=>x.value).join(', '):'Ninguna'); pintarSeguimiento(); };
   box.querySelectorAll('.dd-todas').forEach(b=>b.onclick=()=>{ box.querySelectorAll('input').forEach(x=>x.checked=b.dataset.a==='1'); res(); });
   box.querySelectorAll('input').forEach(x=>x.onchange=res);
-  dd.querySelector('summary').textContent=nombre+': Todas';
+  dd.querySelector('summary').textContent=nombre+': '+todos;
 }
 function pintarSeguimiento(){
   const sel=id=>new Set([...document.querySelectorAll('#'+id+' input:checked')].map(x=>x.value));
