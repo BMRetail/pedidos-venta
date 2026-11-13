@@ -95,6 +95,31 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .ped-carga h3{font-size:14px;color:var(--bm-blue);margin-bottom:4px}
 .ped-carga .fila{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .ped-carga .fila>div>label{display:block;margin-bottom:3px}
+.tabs-bandeja{display:flex;align-items:center;gap:6px;margin:8px 0 4px;flex-wrap:wrap}
+.tabs-bandeja .sep{flex:1;min-width:16px}
+.tab-b{border:1px solid var(--bm-blue);background:#fff;color:var(--bm-blue);border-radius:20px;cursor:pointer;font-weight:700}
+.tab-b.principal{font-size:15px;padding:9px 18px}.tab-b.principal.on{background:var(--bm-blue);color:#fff}
+.tab-b.sec2{font-size:12px;padding:6px 12px;border-color:#d7dce3;color:#646568}.tab-b.sec2.on{background:#646568;border-color:#646568;color:#fff}
+.seg-filtros{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.dd{position:relative}.dd>summary{list-style:none;cursor:pointer;background:#fff;border:1px solid #d7dce3;border-radius:8px;padding:7px 12px;min-width:160px;font-weight:600;color:var(--bm-blue);font-size:13px}
+.dd>summary::after{content:" ▾";float:right}
+.dd[open]>div{position:absolute;z-index:20;background:#fff;border:1px solid #d7dce3;border-radius:8px;padding:8px 10px;margin-top:4px;min-width:220px;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.dd label{display:block;padding:3px 0;font-size:13px;cursor:pointer}.dd-todas{font-size:12px;color:var(--bm-blue);cursor:pointer;margin-right:10px;text-decoration:underline}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.kpi{background:#fff;border:1px solid #d7dce3;border-radius:10px;padding:8px 10px}.kpi b{display:block;font-size:22px;color:var(--bm-blue)}.kpi span{font-size:12px;color:#646568}
+.kpi.mal b{color:var(--bm-red)}.kpi i{font-style:normal;cursor:help;color:#646568;font-size:12px;margin-left:4px}
+.seg-caja{max-height:60vh;overflow:auto;border:1px solid #d7dce3;border-radius:8px;background:#fff}
+.seg-tabla{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+.seg-tabla th{position:sticky;top:0;background:var(--bm-blue);color:#fff;text-align:left;padding:7px 8px;white-space:nowrap;z-index:2}
+.seg-tabla td{padding:7px 8px;border-bottom:1px solid #eef0f4;vertical-align:top}
+.seg-tabla th:first-child,.seg-tabla td:first-child{position:sticky;left:0;border-right:2px solid #d7dce3}
+.seg-tabla th:first-child{z-index:3}.seg-tabla td:first-child{background:#fff;min-width:200px}
+.seg-tabla tr.sinov td{background:#fff3f4}
+.chip{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
+.chip.pend{background:#fff1dc;color:#b45f00}.chip.serv{background:#e6f4ea;color:var(--bm-green-dark)}.chip.fact{background:#e8eef8;color:var(--bm-blue)}.chip.sin{background:var(--bm-red);color:#fff}
+.dif{color:#b45f00;font-size:12px}
+.seg-met{margin-top:10px;font-size:13px;color:#333}.seg-met summary{cursor:pointer;color:var(--bm-blue);font-weight:600}
+@media (max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
 .aviso-rojo{background:var(--bm-red-light);color:var(--bm-red);border:1px solid var(--bm-red);border-radius:6px;padding:4px 8px;font-weight:700;font-size:12px;margin-top:4px}
 .tabla-stock{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}
 .tabla-stock th{background:var(--bm-blue);color:#fff;padding:5px;text-align:right}.tabla-stock th:first-child{text-align:left}
@@ -274,9 +299,25 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </form>
 
   <div id="bandejaBox">
-    <div class="section-title" style="margin-top:8px">Pedidos para cargar en LN</div>
-    <div class="hint" id="bandejaInfo"></div>
-    <div id="bandejaLista">Cargando...</div>
+    <div class="tabs-bandeja"><button type="button" class="tab-b principal on" id="tabPorCargar" onclick="verPestanaBandeja('car')">📦 Por cargar</button><span class="sep"></span><button type="button" class="tab-b sec2" id="tabSeguimiento" onclick="verPestanaBandeja('seg')">🔎 Seguimiento en LN</button></div>
+    <div id="vistaPorCargar">
+      <div class="section-title" style="margin-top:8px">Pedidos para cargar en LN</div>
+      <div class="hint" id="bandejaInfo"></div>
+      <div id="bandejaLista">Cargando...</div>
+    </div>
+    <div id="vistaSeguimiento" style="display:none">
+      <div class="seg-filtros"><details class="dd" id="segTienda"><summary>Tienda: Todas</summary><div></div></details><details class="dd" id="segEstado"><summary>Estado: Todos</summary><div></div></details></div>
+      <div class="kpis" id="segKpis"></div>
+      <div class="hint" id="segInfo" style="margin-bottom:6px"></div>
+      <div class="seg-caja"><table class="seg-tabla"><thead><tr><th>Pedido</th><th>OV en LN</th><th>Sale de (LN)</th><th>Artículos</th><th>Estado en LN</th></tr></thead><tbody id="segTabla"></tbody></table></div>
+      <details class="seg-met"><summary>ⓘ Cómo se cruza el pedido con la OV</summary>
+        <p><b>Fuente:</b> LN, órdenes de venta (cabecera ttdsls400 y líneas ttdsls401), leídas cada hora (L–V, 8–18 h) sin bloquear LN.</p>
+        <p><b>Regla:</b> si transporte escribió el nº de OV al marcar «Pedido creado en LN sin CSV», se usa ese. Si no, la OV del <b>mismo cliente</b> creada desde 1 h antes del pedido hasta 7 días después que <b>comparte artículos</b> con él (la que más comparte). Cada OV se asigna a un solo pedido.</p>
+        <p><b>Sale de:</b> en negrita, el almacén real de las líneas de la OV en LN; debajo, el elegido en el CSV y el que sugirió la app. <b>Tienda vendedora:</b> si el departamento de la OV no es el del pedido, sale un aviso.</p>
+        <p><b>Estado:</b> Pendiente de servir = nada entregado · Servida en parte · Servida = todo entregado (fecha de la última entrega) · Facturada = con fecha de factura.</p>
+        <p><b>«Sin OV en LN»:</b> cargado hace más de 2 h de horario de transporte (L–V, 8–17 h) y sin OV que encaje. Antes de eso sale «Esperando OV».</p>
+      </details>
+    </div>
   </div>
 
   <div class="submit-bar" id="barraPedido" style="display:none">
@@ -1069,6 +1110,7 @@ async function cargarBandeja(){
     let meta=null; try{ const m=await getDoc(doc(db,'stockTransporte','_meta')); meta=m.exists()&&m.data().actualizado?m.data().actualizado.toDate():null; }catch(e){}
     document.getElementById('bandejaInfo').textContent=pedidosCarga.length+' pedido(s) pendiente(s) de cargar en LN.'+(meta?' Stock de LN a las '+meta.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' del '+meta.toLocaleDateString('es-ES')+'.':'');
     lista.innerHTML=pedidosCarga.length?pedidosCarga.map(p=>tarjetaCarga(p, stock)).join(''):'<div class="hint">No hay pedidos pendientes.</div>';
+    const tb=document.getElementById('tabPorCargar'); if(tb) tb.textContent='📦 Por cargar ('+pedidosCarga.length+')';
   }catch(e){ console.error(e); lista.textContent='No se pudo cargar la bandeja: '+e.message; }
 }
 function franjasCompatibles(p){
@@ -1091,7 +1133,7 @@ function tarjetaCarga(p, stock){
     lin.map(l=>'<tr><td>'+esc(sinCeros(l.articuloCodigo))+' <small>'+esc((l.descripcion||'').slice(0,28))+'</small></td><td>'+l.unidades+'</td>'+ALMACENES_TRANSPORTE.map(a=>{
       const s=(stock[l.articuloCodigo]||{})[a.w]||[0,0,'']; return '<td><span class="'+(s[0]>=l.unidades?'ok':'mal')+'">'+Math.round(s[0]).toLocaleString('es-ES')+'</span>'+(s[1]>0?'<br><small class="amb">+'+Math.round(s[1]).toLocaleString('es-ES')+' en camino'+(s[2]?' ('+s[2].split('-').reverse().slice(0,2).join('/')+')':'')+'</small>':'')+'</td>'; }).join('')+'</tr>').join('')+'</table>';
   return '<div class="ped-carga" id="pc_'+p.id+'">'+
-    '<h3>'+esc(p.clienteRazonSocial)+' · '+esc(sinCeros(p.clientePartner))+(p.prueba?' <span class="tag">prueba</span>':'')+'</h3>'+
+    '<h3>'+esc(p.clienteRazonSocial)+' · '+esc(sinCeros(p.clientePartner))+(p.prueba?' <span class="tag">prueba</span>':'')+antiguedad(p)+'</h3>'+
     '<div class="hint">'+esc(fecha)+' · '+esc(p.comercialNombre)+' · Tienda '+esc(p.tiendaNombre)+' → '+esc(p.departamento||'')+' · Origen '+esc(p.origen||'4')+'<br>'+
     'Transporte: <b>'+esc((p.fechaTransporte||'').split('-').reverse().join('/'))+'</b> · Cliente pide: <b>'+esc(p.franjaHoraria)+'</b> · '+esc(p.direccion)+', '+esc(p.cp)+' '+esc(p.municipio)+'</div>'+
     av+
@@ -1150,7 +1192,7 @@ window.descargarCSV=async function descargarCSV(id){
   try{
     await updateDoc(doc(db,'pedidos',id), {estadoCarga:'cargado', cargadoPor:perfilActual.email, cargadoEn:serverTimestamp(),
       almacenCarga:alm, franjaLN:fr, direccionLNCarga:dir, contactoLNCarga:con});
-    document.getElementById('pc_'+id).outerHTML='<div class="ped-carga"><span class="tag verde">Cargado en LN</span> '+esc(p.clienteRazonSocial)+' · CSV descargado.</div>';
+    document.getElementById('pc_'+id).outerHTML='<div class="ped-carga"><span class="tag verde">Cargado en LN</span> '+esc(p.clienteRazonSocial)+' · CSV descargado. Su OV saldrá en «Seguimiento en LN» en la próxima hora.</div>';
   }catch(e){ console.error(e); alert('El CSV se ha descargado, pero no se pudo marcar como cargado: '+e.message); }
 };
 
@@ -1166,6 +1208,100 @@ function datosTiempo(){
 // al limpiar el formulario (también tras guardar) empieza a contar de nuevo el siguiente pedido
 const _limpiarOriginal=window.limpiarFormulario;
 window.limpiarFormulario=function(skip){ _limpiarOriginal(skip); inicioFormulario=null; };
+
+
+/* ---------- 13/11/2026 · Seguimiento en LN (maqueta aprobada por Rossy) ----------
+   La OV y su estado los escribe cada hora import_transporte.py ov (pedidos/{id}.seguimientoLN). */
+function antiguedad(p){
+  if(!p.creadoEn||!p.creadoEn.toDate) return '';
+  const m=Math.round((Date.now()-p.creadoEn.toDate())/60000);
+  const t=m<60?m+' min':m<1440?Math.floor(m/60)+' h':Math.floor(m/1440)+' d';
+  return ' <span class="tag'+(horasTransporte(p.creadoEn.toDate(), new Date())>2?' rojo':'')+'" title="Tiempo desde que el comercial guardó el pedido">hace '+t+'</span>';
+}
+// horas dentro del horario de transporte (lunes a viernes, de 8 a 17 h) entre dos fechas
+function horasTransporte(desde, hasta){
+  let h=0; const d=new Date(desde);
+  for(let i=0; i<60 && d<hasta; i++){
+    const ini=new Date(d); ini.setHours(8,0,0,0);
+    const fin=new Date(d); fin.setHours(17,0,0,0);
+    const dia=d.getDay();
+    if(dia>=1 && dia<=5){
+      const a=d>ini?d:ini, b=hasta<fin?hasta:fin;
+      if(b>a) h+=(b-a)/36e5;
+    }
+    d.setDate(d.getDate()+1); d.setHours(0,0,0,0);
+  }
+  return h;
+}
+let pedidosSeg=[];
+window.verPestanaBandeja=function verPestanaBandeja(v){
+  document.getElementById('vistaPorCargar').style.display=v==='car'?'':'none';
+  document.getElementById('vistaSeguimiento').style.display=v==='seg'?'':'none';
+  document.getElementById('tabPorCargar').classList.toggle('on', v==='car');
+  document.getElementById('tabSeguimiento').classList.toggle('on', v==='seg');
+  if(v==='seg') cargarSeguimiento(); else cargarBandeja();
+};
+const ESTADOS_SEG={pendiente:'Pendiente de servir', parcial:'Servida en parte', servida:'Servida', facturada:'Facturada', espera:'Esperando OV', sin:'⚠ Sin OV en LN'};
+function estadoSeg(p){
+  const s=p.seguimientoLN||{};
+  if(s.ov) return s.estado||'pendiente';
+  const c=p.cargadoEn&&p.cargadoEn.toDate?p.cargadoEn.toDate():null;
+  return c && horasTransporte(c, new Date())>2 ? 'sin' : 'espera';
+}
+async function cargarSeguimiento(){
+  const tb=document.getElementById('segTabla'); tb.innerHTML='<tr><td colspan="5">Cargando...</td></tr>';
+  try{
+    const snap=await getDocs(query(collection(db,'pedidos'), where('estadoCarga','==','cargado')));
+    const lim=Date.now()-14*864e5;
+    pedidosSeg=[];
+    snap.forEach(d=>{ const x=d.data(); const c=x.cargadoEn&&x.cargadoEn.toDate?x.cargadoEn.toDate():null; if(c && c.getTime()>=lim && x.creadoEn) pedidosSeg.push(Object.assign({id:d.id}, x)); });
+    pedidosSeg.sort((a,b)=>b.creadoEn.seconds-a.creadoEn.seconds);
+    let meta=null; try{ const m=await getDoc(doc(db,'stockTransporte','_metaOV')); meta=m.exists()&&m.data().actualizado?m.data().actualizado.toDate():null; }catch(e){}
+    document.getElementById('segInfo').textContent='Pedidos cargados en los últimos 14 días.'+(meta?' LN consultado a las '+meta.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' del '+meta.toLocaleDateString('es-ES')+' (se actualiza cada hora, de lunes a viernes de 8 a 18 h).':'');
+    montarFiltroSeg('segTienda','Tienda',[...new Set(pedidosSeg.map(p=>p.tiendaNombre||'—'))].sort());
+    montarFiltroSeg('segEstado','Estado',Object.keys(ESTADOS_SEG).map(k=>ESTADOS_SEG[k]));
+    pintarSeguimiento();
+  }catch(e){ console.error(e); tb.innerHTML='<tr><td colspan="5">No se pudo cargar el seguimiento: '+esc(e.message)+'</td></tr>'; }
+}
+function montarFiltroSeg(id, nombre, valores){
+  const dd=document.getElementById(id), box=dd.querySelector('div');
+  box.innerHTML='<span class="dd-todas" data-a="1">Todas</span><span class="dd-todas" data-a="0">Ninguna</span>'+valores.map(v=>'<label><input type="checkbox" checked value="'+esc(v)+'"> '+esc(v)+'</label>').join('');
+  const res=()=>{ const c=[...box.querySelectorAll('input')], on=c.filter(x=>x.checked); dd.querySelector('summary').textContent=nombre+': '+(on.length===c.length?'Todas':on.length?on.map(x=>x.value).join(', '):'Ninguna'); pintarSeguimiento(); };
+  box.querySelectorAll('.dd-todas').forEach(b=>b.onclick=()=>{ box.querySelectorAll('input').forEach(x=>x.checked=b.dataset.a==='1'); res(); });
+  box.querySelectorAll('input').forEach(x=>x.onchange=res);
+  dd.querySelector('summary').textContent=nombre+': Todas';
+}
+function pintarSeguimiento(){
+  const sel=id=>new Set([...document.querySelectorAll('#'+id+' input:checked')].map(x=>x.value));
+  const st=sel('segTienda'), se=sel('segEstado');
+  const fh=d=>d.toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const fdm=s=>s?s.slice(8,10)+'/'+s.slice(5,7):'';
+  const nA=w=>esc(NOMBRE_ALM[w]||w||'—');
+  const rs=pedidosSeg.filter(p=>st.has(p.tiendaNombre||'—') && se.has(ESTADOS_SEG[estadoSeg(p)]));
+  const conOV=rs.filter(p=>(p.seguimientoLN||{}).ov).length;
+  const serv=rs.filter(p=>['servida','facturada'].includes(estadoSeg(p))).length;
+  const sin=rs.filter(p=>estadoSeg(p)==='sin').length;
+  document.getElementById('segKpis').innerHTML=
+    '<div class="kpi"><b>'+rs.length+'</b><span>Cargados</span><i title="Pedidos marcados como cargados en LN (CSV o «creado sin CSV») en los últimos 14 días.">ⓘ</i></div>'+
+    '<div class="kpi"><b>'+conOV+'</b><span>Con OV en LN</span><i title="Con una OV de LN que encaja: la escrita por transporte o, si no, una del mismo cliente creada entre 1 h antes y 7 días después del pedido, con artículos en común.">ⓘ</i></div>'+
+    '<div class="kpi"><b>'+serv+'</b><span>Servidos o facturados</span><i title="OV con todo lo pedido entregado (cantidad entregada ≥ pedida) o con fecha de factura.">ⓘ</i></div>'+
+    '<div class="kpi'+(sin?' mal':'')+'"><b>'+sin+'</b><span>Sin OV en LN</span><i title="Marcados como cargados hace más de 2 h de horario de transporte (L–V, 8–17 h) y sin OV que encaje en LN: revisar.">ⓘ</i></div>';
+  const CLS={pendiente:'pend',parcial:'pend',servida:'serv',facturada:'fact',sin:'sin',espera:'pend'};
+  document.getElementById('segTabla').innerHTML=rs.map(p=>{
+    const s=p.seguimientoLN||{}, e=estadoSeg(p), f=p.creadoEn.toDate();
+    const ped='<b>'+esc(p.clienteRazonSocial)+'</b><br><small>'+fh(f)+' · '+esc(p.tiendaNombre)+' · '+esc(p.comercialNombre)+(p.cargaManual?' · creado sin CSV':'')+'</small>'+
+      (s.departamento&&p.departamento&&s.departamento!==p.departamento?'<br><span class="dif">⚠ en LN va a '+esc(s.departamento)+' (pedido: '+esc(p.departamento)+')</span>':'');
+    const txt=e==='facturada'?'Facturada '+fdm(s.facturada):e==='servida'?'Servida '+fdm(s.servida):ESTADOS_SEG[e];
+    if(!s.ov){
+      const c=p.cargadoEn.toDate();
+      return '<tr class="'+(e==='sin'?'sinov':'')+'"><td>'+ped+'</td><td colspan="3"><small>Cargado '+fh(c)+'. '+(e==='sin'?'LN no tiene ninguna OV de este cliente con estos artículos'+(s.ovEscrita?' (se escribió la OV '+esc(s.ovEscrita)+' y no existe en LN)':'')+'.':'Se busca en LN cada hora.')+'</small></td><td><span class="chip '+CLS[e]+'">'+esc(txt)+'</span></td></tr>';
+    }
+    const cr=new Date(s.creada), m=Math.round((cr-f)/60000), mt=Math.abs(m)<60?m+' min':Math.floor(m/60)+' h '+(Math.abs(m)%60)+' min';
+    const real=s.almacenes||[], csv=p.almacenCarga||null, sug=p.almacenSugerido||null;
+    const sale='<b>'+real.map(nA).join(' + ')+'</b><br><small>CSV: '+(p.cargaManual?'— (sin CSV)':nA(csv))+(csv&&!p.cargaManual&&!real.includes(csv)?' <span class="dif">≠ LN</span>':'')+'<br>sugerido: '+nA(sug)+(sug&&csv&&sug!==csv?' <span class="dif">(cambiado)</span>':'')+'</small>';
+    return '<tr><td>'+ped+'</td><td><b>'+esc(s.ov)+'</b><br><small>creada '+fh(cr)+' ('+(m>=0?'+':'')+mt+')'+(s.origen==='escrita'?' · nº escrito por transporte':'')+'</small></td><td>'+sale+'</td><td>'+(s.coinciden||0)+' de '+(s.articulos||0)+'</td><td><span class="chip '+CLS[e]+'">'+esc(txt)+'</span></td></tr>';
+  }).join('') || '<tr><td colspan="5"><small>Sin pedidos con estos filtros.</small></td></tr>';
+}
 
 (async function init(){
   setFechaAuto();
