@@ -18,6 +18,7 @@
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#F0F4FB;min-height:100vh;padding:0;margin:0;font-size:15px}
 .page{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+.page.ancha{max-width:900px}
 
 .form-header{background:var(--bm-blue);padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .header-right{flex:1}
@@ -57,6 +58,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .autocomplete-item small{display:block;color:#667;font-size:11px;margin-top:2px}
 
 .articulo-line{margin-bottom:10px;padding:12px;background:var(--bm-blue-pale);border:1px solid var(--bm-blue-light);border-radius:10px}
+.articulo-line:nth-child(even){background:#fff;border-color:#c9d6ee}
+#articulos-container{max-height:55vh;overflow-y:auto;border:1px solid var(--bm-blue-light);border-radius:10px;padding:8px;background:#fafbfe}
+.num-linea{font-size:12px;font-weight:700;color:#fff;background:var(--bm-blue);display:inline-block;border-radius:10px;padding:2px 10px;margin-bottom:8px}
+.linea-auto .num-linea{background:var(--bm-red)}
+.cuenta-lineas{font-size:12px;color:#667;margin:-4px 0 8px}
 .articulo-line-top{display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:8px;align-items:end;margin-bottom:10px}
 .articulo-line .field{margin-bottom:0}
 .articulo-line .field label{font-size:11px;color:var(--bm-blue)}
@@ -75,6 +81,25 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .status-banner.err{background:var(--bm-red-light);color:var(--bm-red);border:1px solid #f0bcbe}
 #loginBox{display:none}
 .sesion-bar{display:none;justify-content:space-between;align-items:center;padding:8px 16px;background:var(--bm-blue-light);font-size:12px;color:var(--bm-blue)}
+.radio-btn.alerta:has(input:checked){background:var(--bm-red);border-color:var(--bm-red)}
+.radio-btn.alerta:has(input:checked) span{color:#fff}
+.prueba-aviso{background:#fff3cd;color:#7a5600;font-size:12px;font-weight:600;padding:6px 16px;text-align:center}
+.alm-sug{border:2px solid var(--bm-green);border-radius:10px;padding:10px 12px;background:#f3fbf5;font-size:14px}
+.alm-sug.parcial{border-color:var(--bm-red);background:var(--bm-red-light)}
+.hint{font-size:12px;color:#667;line-height:1.4;margin-top:4px}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--bm-blue-light);color:var(--bm-blue);margin-left:4px}
+.tag.rojo{background:var(--bm-red-light);color:var(--bm-red)}.tag.verde{background:#e6f4ea;color:var(--bm-green-dark)}
+.linea-auto{background:#eef3fb}
+#bandejaBox{display:none;padding:8px 12px 30px}
+.ped-carga{border:1px solid var(--bm-blue-light);border-radius:10px;padding:12px;margin:10px 0;background:#fff}
+.ped-carga h3{font-size:14px;color:var(--bm-blue);margin-bottom:4px}
+.ped-carga .fila{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.ped-carga .fila>div>label{display:block;margin-bottom:3px}
+.aviso-rojo{background:var(--bm-red-light);color:var(--bm-red);border:1px solid var(--bm-red);border-radius:6px;padding:4px 8px;font-weight:700;font-size:12px;margin-top:4px}
+.tabla-stock{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}
+.tabla-stock th{background:var(--bm-blue);color:#fff;padding:5px;text-align:right}.tabla-stock th:first-child{text-align:left}
+.tabla-stock td{padding:5px;border-bottom:1px solid #eee;text-align:right}.tabla-stock td:first-child{text-align:left}
+.ok{color:var(--bm-green-dark);font-weight:600}.mal{color:var(--bm-red);font-weight:600}.amb{color:#b45f00}
 .sesion-bar span.salir{font-weight:700;cursor:pointer;text-decoration:underline}
 </style>
 </head>
@@ -92,7 +117,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div id="statusBanner" class="status-banner"></div>
 
   <!-- Acceso con usuario (15/10/2026): mismo usuario que el Rutero Comercial -->
-  <div class="sesion-bar" id="sesionBar"><span>Conectado como <b id="sesionNombre"></b></span><span class="salir" onclick="cerrarSesion()">Cerrar sesión</span></div>
+  <div class="sesion-bar" id="sesionBar"><span>Conectado como <b id="sesionNombre"></b></span><span><span class="salir" id="btnBandeja" style="display:none;margin-right:12px" onclick="alternarBandeja()">📦 Bandeja de carga</span><span class="salir" onclick="cerrarSesion()">Cerrar sesión</span></span></div>
   <div id="loginBox">
     <div class="section">
       <div class="section-title">Acceso</div>
@@ -143,9 +168,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="autocomplete-list" id="partner_list"></div>
       </div>
       <div class="field">
-        <label class="required">Contacto autorizado</label>
-        <input type="text" id="contacto_autorizado" placeholder="Nombre" autocomplete="off">
+        <label class="required">Contacto autorizado <span class="tag">de LN</span></label>
+        <select id="contacto_ln" onchange="cambioContactoLN()"><option value="">— Elige primero el cliente —</option></select>
+        <input type="text" id="contacto_autorizado" placeholder="Nombre del contacto (no está en LN)" autocomplete="off" style="display:none;margin-top:6px">
         <div class="autocomplete-list" id="contacto_autorizado_list"></div>
+        <div class="hint" id="contacto_hint">Solo salen los contactos activos (no caducados) del cliente en LN.</div>
       </div>
     </div>
 
@@ -158,16 +185,17 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="field"><label class="required">Franja horaria</label>
         <select id="franja">
           <option value="">— Seleccionar —</option>
-          <option value="1ª Franja">1ª Franja</option>
-          <option value="2ª Franja">2ª Franja</option>
-          <option value="3ª Franja">3ª Franja</option>
-          <option value="Sin Franja Determinada">Sin Franja Determinada</option>
+          <option value="Mañana (8–14 h)">Mañana (8–14 h)</option>
+          <option value="Tarde (14–16 h)">Tarde (14–16 h)</option>
+          <option value="Indiferente">Indiferente</option>
         </select>
+        <div class="hint">La franja exacta de LN (001 · 8–11 h, 002 · 11–14 h, 003 · 14–16 h) la elige transporte.</div>
       </div>
       <div class="field">
         <label class="required">Dirección de entrega</label>
-        <input type="text" id="direccion" placeholder="Calle, número, piso..." autocomplete="off">
+        <input type="text" id="direccion" placeholder="Obra de LN o dirección nueva..." autocomplete="off">
         <div class="autocomplete-list" id="direccion_list"></div>
+        <div class="hint" id="obra_hint">Al tocar el campo salen las obras del cliente en LN. Si no está, escribe la dirección nueva.</div>
       </div>
       <div class="row-2">
         <div class="field"><label class="required">Código postal</label><input type="tel" id="cp" placeholder="28000" maxlength="5" inputmode="numeric"></div>
@@ -179,22 +207,41 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="autocomplete-list" id="contacto_obra_list"></div>
       </div>
       <div class="field"><label class="required">Teléfono contacto</label><input type="tel" id="tlfo1" placeholder="600-000-000" maxlength="11" inputmode="tel" oninput="formatTel(this)"></div>
-      <div class="field"><label>Calle estrecha</label>
+      <div class="field"><label class="required">Grúa</label>
         <div class="radio-group">
-          <label class="radio-btn" for="ce_si"><input type="radio" name="calle_estrecha" id="ce_si" value="Sí"><span>Sí</span></label>
+          <label class="radio-btn" for="g_no"><input type="radio" name="grua" id="g_no" value="No" onchange="cambioGrua()"><span>No</span></label>
+          <label class="radio-btn alerta" for="g_7"><input type="radio" name="grua" id="g_7" value="Hasta 7 m" onchange="cambioGrua()"><span>Hasta 7 m</span></label>
+          <label class="radio-btn alerta" for="g_13"><input type="radio" name="grua" id="g_13" value="Especial 13 m" onchange="cambioGrua()"><span>Especial 13 m</span></label>
+        </div>
+        <div class="hint">Con grúa se añade sola la línea TVGRU15M × 1.</div>
+      </div>
+      <div class="field"><label class="required">Calle estrecha</label>
+        <div class="radio-group">
+          <label class="radio-btn alerta" for="ce_si"><input type="radio" name="calle_estrecha" id="ce_si" value="Sí"><span>Sí</span></label>
           <label class="radio-btn" for="ce_no"><input type="radio" name="calle_estrecha" id="ce_no" value="No"><span>No</span></label>
         </div>
       </div>
-      <div class="field"><label>Grúa 15 m</label>
+      <div class="field"><label class="required">Calle restringida</label>
         <div class="radio-group">
-          <label class="radio-btn" for="g_si"><input type="radio" name="grua" id="g_si" value="Sí"><span>Sí</span></label>
-          <label class="radio-btn" for="g_no"><input type="radio" name="grua" id="g_no" value="No"><span>No</span></label>
+          <label class="radio-btn alerta" for="cr_si"><input type="radio" name="calle_restringida" id="cr_si" value="Sí" onchange="cambioRestringida()"><span>Sí</span></label>
+          <label class="radio-btn" for="cr_no"><input type="radio" name="calle_restringida" id="cr_no" value="No" onchange="cambioRestringida()"><span>No</span></label>
+        </div>
+        <div id="restr_box" style="display:none;margin-top:8px">
+          <label class="required">Horario permitido de entrada</label>
+          <div class="row-2"><input type="time" id="restr_desde"><input type="time" id="restr_hasta"></div>
+          <input type="text" id="restr_nota" placeholder="Nota (opcional): p. ej. carga y descarga máx. 30 min" style="margin-top:6px">
+        </div>
+      </div>
+      <div class="field"><label class="required">Se puede adelantar</label>
+        <div class="radio-group">
+          <label class="radio-btn" for="ad_si"><input type="radio" name="adelantar" id="ad_si" value="Sí"><span>Sí</span></label>
+          <label class="radio-btn" for="ad_no"><input type="radio" name="adelantar" id="ad_no" value="No"><span>No</span></label>
         </div>
       </div>
       <div class="field"><label>Contacto alternativo</label><input type="text" id="contacto_alt" placeholder="Nombre contacto alternativo"></div>
       <div class="field"><label>Teléfono alternativo</label><input type="tel" id="tlfo2" placeholder="600-000-000" maxlength="11" inputmode="tel" oninput="formatTel(this)"></div>
       <div class="field"><label class="required">Forma de pago</label>
-        <select id="forma_pago">
+        <select id="forma_pago" onchange="avisoCredito()">
           <option value="">— Seleccionar —</option>
           <option value="Pagado">Pagado</option>
           <option value="Crédito">Crédito</option>
@@ -210,13 +257,26 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
     <div class="section">
       <div class="section-title">Líneas de pedido</div>
+      <div class="cuenta-lineas" id="cuentaLineas"></div>
       <div id="articulos-container"></div>
       <button type="button" class="add-line-btn" onclick="addLine()">
         <span style="font-size:20px;line-height:1">+</span> Añadir artículo
       </button>
     </div>
 
+    <div class="section" id="almacenSec">
+      <div class="section-title">Almacén que sirve (propuesta automática)</div>
+      <div class="alm-sug" id="almacenSug">Elige la obra y los artículos para calcularlo.</div>
+      <div class="hint">El más cercano en coche a la obra con stock disponible de todo el pedido. Transporte o administración lo pueden cambiar.</div>
+    </div>
+
   </form>
+
+  <div id="bandejaBox">
+    <div class="section-title" style="margin-top:8px">Pedidos para cargar en LN</div>
+    <div class="hint" id="bandejaInfo"></div>
+    <div id="bandejaLista">Cargando...</div>
+  </div>
 
   <div class="submit-bar" id="barraPedido" style="display:none">
     <button class="submit-btn" id="submitBtn" onclick="enviarPedido()">Guardar pedido</button>
@@ -249,7 +309,7 @@ import {
   query, where, orderBy, startAt, endAt, limit, serverTimestamp
 } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/auth/+esm';
-import { setDoc } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
+import { setDoc, updateDoc } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
 
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
@@ -278,13 +338,14 @@ window.addLine=function addLine(){
   div.className='articulo-line';
   div.id='line-'+id;
   div.innerHTML=
+    '<div class="num-linea"></div>'+
     '<div class="articulo-line-top">'+
       '<div class="field" style="position:relative">'+
         '<label>Artículo</label>'+
         '<input type="text" id="art_'+id+'" placeholder="Código..." oninput="buscarArticulo('+id+',this.value,\'art\',this)">'+
         '<div class="autocomplete-list" id="art_'+id+'_list"></div>'+
       '</div>'+
-      '<div class="field"><label>Unidades</label><input type="number" id="uni_'+id+'" placeholder="0" min="1" step="1" inputmode="numeric"></div>'+
+      '<div class="field"><label>Unidades</label><input type="number" id="uni_'+id+'" placeholder="0" min="1" step="1" inputmode="numeric" oninput="programarAlmacen()"></div>'+
       '<div class="field"><label>Dto.%</label><input type="number" id="dto_'+id+'" placeholder="0" min="0" max="100" step="0.1" inputmode="decimal"></div>'+
       '<button type="button" class="del-btn" onclick="removeLine('+id+')" title="Eliminar">×</button>'+
     '</div>'+
@@ -294,9 +355,9 @@ window.addLine=function addLine(){
       '<div class="autocomplete-list" id="desc_'+id+'_list"></div>'+
     '</div>';
   c.appendChild(div);
-  div.scrollIntoView({behavior:'smooth',block:'nearest'});
+  c.scrollTop=c.scrollHeight; renumerarLineas();
 }
-window.removeLine=function removeLine(id){const el=document.getElementById('line-'+id);if(el)el.remove();}
+window.removeLine=function removeLine(id){const el=document.getElementById('line-'+id);if(el)el.remove();renumerarLineas();programarAlmacen();}
 function getLineas(){
   const lines=[];
   document.querySelectorAll('[id^="line-"]').forEach(function(div){
@@ -339,6 +400,7 @@ async function cargarComerciales(){
     if(c.activo===false) return;
     if(COMERCIALES_OCULTOS.has(d.id)) return;
     items.push({id:d.id,nombre:c.nombre||''});
+    origenComercial[d.id]=String(c.origen||'4');
   });
   items.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,'es'); });
   items.forEach(function(it){
@@ -355,6 +417,7 @@ async function cargarTiendas(){
     const a=d.data();
     if(a.activo===false) return;
     if(TIENDAS_OCULTAS.has(d.id)) return;
+    if(a.region!=='MADRID') return;   // Barcelona y Castilla y León: fuera hasta su lanzamiento (13/11/2026)
     items.push({id:d.id,...a});
   });
   items.sort(function(a,b){
@@ -375,9 +438,9 @@ async function cargarTiendas(){
 function onClienteSeleccionado(it){
   document.getElementById('cliente').value=it.razonSocial;
   document.getElementById('partner').value=it.partner;
-  if(it.contacto) document.getElementById('contacto_autorizado').value=it.contacto;
   clienteSeleccionado={partner:it.partner,razonSocial:it.razonSocial};
   cargarSugerenciasCliente(it.partner);
+  cargarDatosLN(it.partner);
 }
 function renderAutocomplete(listEl, items, onPick){
   listEl.innerHTML='';
@@ -472,15 +535,23 @@ async function buscarDireccion(term){
     const ctx=f.context||[];
     const cp=(ctx.find(c=>c.id.startsWith('postcode.'))||{}).text||'';
     const municipio=(ctx.find(c=>c.id.startsWith('place.'))||{}).text||'';
-    return {mainText:f.place_name, cp:cp, municipio:municipio};
+    return {mainText:f.place_name, cp:cp, municipio:municipio, centro:f.center};
   });
-  renderAutocomplete(listEl, items, seleccionarDireccion);
+  // 12/11/2026: se busca palabra por palabra (sin tildes ni «calle/c/avda/de...»), en cualquier orden:
+  // «C/ ESCOSURA 4 MADRID» encuentra «C/ ESCOSURA 4 · 28015 · MADRID»
+  const norm=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  const VACIAS={c:1,cl:1,calle:1,av:1,avd:1,avda:1,avenida:1,pza:1,plaza:1,pl:1,de:1,del:1,la:1,el:1,los:1,las:1,n:1,no:1,num:1,s:1,sn:1};
+  const pals=norm(term).split(' ').filter(w=>w && !VACIAS[w]);
+  const obras=pals.length?obrasCliente.filter(o=>{ const h=' '+norm(o.obra+' '+o.cp+' '+o.mun+' '+o.cod)+' '; return pals.every(w=>h.includes(' '+w)); }).slice(0,5).map(itemObra):[];
+  renderAutocomplete(listEl, obras.concat(items.map(x=>Object.assign(x,{subText:'Dirección nueva (sin registrar en LN)'}))), function(it){ it.obraLN ? elegirObra(it) : seleccionarDireccion(it); });
 }
 const buscarDireccionDebounced=debounce(buscarDireccion,400);
 function seleccionarDireccion(it){
-  document.getElementById('direccion').value=it.mainText;
+  obraElegida=null; coordsObra=it.centro||null;
+  document.getElementById('direccion').value=it.mainText; mostrarObraHint();
   if(it.cp) document.getElementById('cp').value=it.cp;
   if(it.municipio) document.getElementById('municipio').value=it.municipio;
+  programarAlmacen();
 }
 
 /* ---------- autocompletado: artículos por línea (busca por código, descripción o clave de búsqueda) ---------- */
@@ -514,6 +585,7 @@ const buscarArticuloDebounced=debounce(async function(id,term,campo,campoEl){
   renderAutocomplete(listEl, items.slice(0,10), function(it){
     linea.querySelector('input[id^="art_"]').value=it.codigo;
     linea.querySelector('input[id^="desc_"]').value=it.descripcion||'';
+    programarAlmacen();
   });
 },300);
 window.buscarArticulo=function(id,term,campo,campoEl){ buscarArticuloDebounced(id,term,campo||'art',campoEl); };
@@ -522,7 +594,7 @@ window.buscarArticulo=function(id,term,campo,campoEl){ buscarArticuloDebounced(i
 
 /* ---------- validación ---------- */
 function validate(){
-  const required=['comercial','tienda','cliente','partner','contacto_autorizado','fecha_transporte','franja','direccion','cp','municipio','contacto_obra','tlfo1','forma_pago'];
+  const required=['comercial','tienda','cliente','partner','fecha_transporte','franja','direccion','cp','municipio','contacto_obra','tlfo1','forma_pago'];
   let ok=true; const missing=[];
   required.forEach(function(id){
     const el=document.getElementById(id);
@@ -530,6 +602,10 @@ function validate(){
     if(!el.value.trim()){ el.classList.add('error'); ok=false; const label=el.closest('.field')?.querySelector('label'); if(label) missing.push(label.textContent.replace(' *','').trim()); }
     else el.classList.remove('error');
   });
+  if(!f('contacto_ln') || (f('contacto_ln')==='OTRO' && !f('contacto_autorizado'))){ document.getElementById('contacto_ln').classList.add('error'); missing.push('Contacto autorizado'); }
+  else document.getElementById('contacto_ln').classList.remove('error');
+  [['grua','Grúa'],['calle_estrecha','Calle estrecha'],['calle_restringida','Calle restringida'],['adelantar','Se puede adelantar']].forEach(function(r){ if(!getRadio(r[0])) missing.push(r[1]); });
+  if(getRadio('calle_restringida')==='Sí' && (!f('restr_desde')||!f('restr_hasta'))) missing.push('Horario de la calle restringida');
   if(missing.length){ showStatus('Faltan campos obligatorios: '+missing.join(', '), false); return false; }
   const tel1=document.getElementById('tlfo1');
   if(tel1.value && !validateTel(tel1.value)){ tel1.classList.add('error'); showStatus('El teléfono de contacto debe tener 9 dígitos.', false); return false; }
@@ -558,25 +634,42 @@ function valorLegible(v){
   if(v===false) return 'No';
   return v;
 }
+function avisosPedido(p){
+  const a=[];
+  if(p.calleRestringida) a.push('CALLE RESTRINGIDA: SOLO DE '+p.restringidaDesde+' A '+p.restringidaHasta+(p.restringidaNota?' ('+p.restringidaNota+')':''));
+  if(p.grua && p.grua!=='No') a.push('GRÚA '+p.grua.toUpperCase());
+  if(p.calleEstrecha==='Sí') a.push('CALLE ESTRECHA');
+  if(!p.obraLN) a.push('DIRECCIÓN NUEVA – SIN REGISTRAR EN LN');
+  if(!p.contactoLN) a.push('CONTACTO NO REGISTRADO EN LN');
+  if(p.formaPago==='Crédito' && p.contactoCredito!==true) a.push('CONTACTO NO AUTORIZADO A CRÉDITO');
+  if(p.almacenSugerido && !p.almacenCompleto) a.push('STOCK PARCIAL EN '+(NOMBRE_ALM[p.almacenSugerido]||p.almacenSugerido).toUpperCase());
+  return a;
+}
 function construirCuerpoPedido(p){
   const hoy=new Date().toLocaleDateString('es-ES');
-  let out='PEDIDO - '+hoy+'\n'+'='.repeat(52)+'\n\n';
+  let out='';
+  const av=avisosPedido(p);
+  if(av.length){ out+='⚠⚠ AVISOS DE TRANSPORTE ⚠⚠\n'; av.forEach(x=>out+='  ⚠ '+x+'\n'); out+='\n'; }
+  out+='PEDIDO - '+hoy+'\n'+'='.repeat(52)+'\n\n';
   out+='DATOS DEL PEDIDO\n';
   out+='Comercial: '+valorLegible(p.comercialNombre)+'\n';
   out+='Tienda: '+valorLegible(p.tiendaNombre)+'\n';
-  out+='Datos importantes: '+valorLegible(p.datosImportantes)+'\n\n';
+  out+='Datos importantes: '+valorLegible(p.datosImportantes)+'\n';
+  out+='Sale de (propuesta): '+(p.almacenSugerido?(NOMBRE_ALM[p.almacenSugerido]||'')+' ('+p.almacenSugerido+')'+(p.almacenCompleto?'':'  ⚠ STOCK PARCIAL'):'-')+'\n\n';
   out+='DATOS DEL CLIENTE\n';
   out+='Cliente: '+valorLegible(p.clienteRazonSocial)+'\n';
   out+='Partner: '+valorLegible(p.clientePartner)+'\n';
-  out+='Contacto autorizado: '+valorLegible(p.contactoAutorizado)+'\n\n';
+  out+='Contacto autorizado: '+valorLegible(p.contactoAutorizado)+(p.contactoLN?' ['+p.contactoLN+']'+(p.contactoCredito?' · autorizado a crédito':' · NO autorizado a crédito'):'  ⚠ NO REGISTRADO EN LN')+'\n\n';
   out+='DATOS DE LA OBRA / ENTREGA\n';
   out+='Fecha transporte: '+valorLegible(p.fechaTransporte)+'\n';
   out+='Franja horaria: '+valorLegible(p.franjaHoraria)+'\n';
-  out+='Dirección: '+valorLegible(p.direccion)+'\n';
+  out+='Dirección: '+valorLegible(p.direccion)+(p.obraLN?'  ['+p.obraLN+']':'  ⚠ DIRECCIÓN NUEVA – SIN REGISTRAR EN LN')+'\n';
   out+='CP: '+valorLegible(p.cp)+'\n';
   out+='Municipio: '+valorLegible(p.municipio)+'\n';
-  out+='Calle estrecha: '+valorLegible(p.calleEstrecha)+'\n';
-  out+='Grúa 15m: '+valorLegible(p.grua15m)+'\n';
+  out+='Grúa: '+(p.grua&&p.grua!=='No'?'⚠ SÍ ⚠  <<< GRÚA '+p.grua.toUpperCase():'No')+'\n';
+  out+='Calle estrecha: '+(p.calleEstrecha==='Sí'?'⚠ SÍ ⚠  <<< CALLE ESTRECHA':valorLegible(p.calleEstrecha))+'\n';
+  out+='Calle restringida: '+(p.calleRestringida?'⚠ SÍ ⚠  <<< SOLO DE '+p.restringidaDesde+' A '+p.restringidaHasta+(p.restringidaNota?' ('+p.restringidaNota+')':''):'No')+'\n';
+  out+='Se puede adelantar: '+valorLegible(p.adelantar)+'\n';
   out+='Contacto en obra: '+valorLegible(p.contactoObra)+' - Tel: '+valorLegible(p.telefonoObra)+'\n';
   out+='Contacto alternativo: '+valorLegible(p.contactoAlternativo)+' - Tel: '+valorLegible(p.telefonoAlternativo)+'\n\n';
   out+='FORMA DE PAGO\n';
@@ -589,7 +682,8 @@ function construirCuerpoPedido(p){
   return out;
 }
 function urlCorreoPedido(p){
-  const asunto='Pedido - '+(p.comercialNombre||'')+' | '+(p.direccion||'')+' | '+(p.fechaTransporte||'');
+  const av=avisosPedido(p).filter(x=>!/STOCK PARCIAL|LN$/.test(x));
+  const asunto=(av.length?'⚠ '+av.join(' · ')+' | ':'')+'Pedido - '+(p.comercialNombre||'')+' | '+(p.direccion||'')+' | '+(p.fechaTransporte||'');
   const cuerpo=construirCuerpoPedido(p);
   const destino=p.tiendaEmailDestino||'';
   return 'mailto:'+destino+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(cuerpo);
@@ -620,12 +714,30 @@ window.enviarPedido=async function enviarPedido(){
     datosImportantes:f('datos_importantes'),
     clientePartner:f('partner'),
     clienteRazonSocial:f('cliente'),
-    contactoAutorizado:f('contacto_autorizado'),
+    contactoAutorizado:f('contacto_ln')==='OTRO'?f('contacto_autorizado'):(document.getElementById('contacto_ln').selectedOptions[0]||{}).textContent||'',
     fechaTransporte:f('fecha_transporte'),
     franjaHoraria:f('franja'),
     direccion:f('direccion'), cp:f('cp'), municipio:f('municipio'),
     calleEstrecha:getRadio('calle_estrecha')||null,
-    grua15m:getRadio('grua')||null,
+    grua:getRadio('grua')||null,
+    grua15m:getRadio('grua')&&getRadio('grua')!=='No'?'Sí':'No',
+    calleRestringida:getRadio('calle_restringida')==='Sí',
+    restringidaDesde:getRadio('calle_restringida')==='Sí'?f('restr_desde'):null,
+    restringidaHasta:getRadio('calle_restringida')==='Sí'?f('restr_hasta'):null,
+    restringidaNota:getRadio('calle_restringida')==='Sí'?(f('restr_nota')||null):null,
+    adelantar:getRadio('adelantar')||null,
+    contactoLN:f('contacto_ln')==='OTRO'?null:f('contacto_ln'),
+    contactoCredito:f('contacto_ln')==='OTRO'?null:!!(contactoElegido()||{}).credito,
+    obraLN:obraElegida?obraElegida.cod:null,
+    almacenSugerido:almacenCalculado?almacenCalculado.w:null,
+    almacenCompleto:almacenCalculado?almacenCalculado.completo:null,
+    almacenFaltan:almacenCalculado?almacenCalculado.faltan:[],
+    minutosAlmacen:almacenCalculado?almacenCalculado.minutos:null,
+    departamento:departamentoDe(f('tienda')),
+    tipoOrden:'P4',
+    origen:origenComercial[f('comercial')]||'4',
+    estadoCarga:enCircuitoTransporte()?'pendiente':null,
+    ...datosTiempo(),
     contactoObra:f('contacto_obra'), telefonoObra:f('tlfo1'),
     contactoAlternativo:f('contacto_alt')||null, telefonoAlternativo:f('tlfo2')||null,
     formaPago:f('forma_pago'),
@@ -657,6 +769,10 @@ window.limpiarFormulario=function limpiarFormulario(skipConfirm){
   if(!skipConfirm && !confirm('¿Seguro que quieres limpiar el formulario? Se borrarán todos los datos.')) return;
   ['comercial','tienda','datos_importantes','cliente','partner','contacto_autorizado','fecha_transporte','franja','direccion','cp','municipio','contacto_obra','tlfo1','contacto_alt','tlfo2','forma_pago','cantidad'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
   document.querySelectorAll('input[type=radio]').forEach(function(r){ r.checked=false; });
+  ['restr_desde','restr_hasta','restr_nota'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('restr_box').style.display='none';
+  obrasCliente=[]; obraElegida=null; almacenCalculado=null; contactosCliente=[]; pintarContactos(); mostrarObraHint();
+  document.getElementById('almacenSug').className='alm-sug'; document.getElementById('almacenSug').textContent='Elige la obra y los artículos para calcularlo.';
   document.querySelectorAll('.error').forEach(function(el){ el.classList.remove('error'); });
   document.getElementById('articulos-container').innerHTML='';
   lineCount=0; addLine();
@@ -741,6 +857,9 @@ async function alEntrar(user){
     catch(err){ console.error(err); showStatus('No se pudieron cargar Comerciales/Tiendas desde Firestore: '+err.message, false); }
   }
   fijarComercialDelUsuario();
+  const puedeCargar = p.rol==='carga' || p.rol==='admin';
+  document.getElementById('btnBandeja').style.display = puedeCargar ? '' : 'none';
+  if(p.rol==='carga') mostrarBandeja(true);
 }
 function fijarComercialDelUsuario(){
   const sel=document.getElementById('comercial');
@@ -756,14 +875,304 @@ function fijarComercialDelUsuario(){
   }
 }
 
+/* ============================================================
+   CARGA A LN + BANDEJA DE TRANSPORTE (prueba, 28/10/2026)
+   Datos de LN que sube el importador (import_transporte.py):
+     contactosLN/{partner}   contactos activos (no caducados)
+     obrasLN/{partner}       obras (direcciones FO) servidas al cliente
+     stockTransporte/b_XX    disponible y en camino en los almacenes de transporte
+   ============================================================ */
+const ALMACENES_TRANSPORTE=[
+  {w:'A32A', n:'Getafe 2',   c:[-3.692618,40.294]},     // c/ Hipatia 2, 28906 Getafe
+  {w:'A06A', n:'Alcorcón',   c:[-3.83633,40.359832]},   // Av. América 34, 28922 Alcorcón
+  {w:'A10A', n:'Alcobendas', c:[-3.650272,40.53155]},   // c/ Metalurgia 11, 28108 Alcobendas
+  // {w:'A11A', n:'Alcalá', c:[-3.385122,40.491377]},  // OCULTO 13/11/2026 (Rossy): de momento Alcalá no sirve transporte
+  {w:'A34A', n:'Illescas',   c:[-3.825695,40.148489]},  // Av. de las Naciones 17, 45200 Illescas
+];
+const NOMBRE_ALM={A11A:'Alcalá'}; ALMACENES_TRANSPORTE.forEach(a=>NOMBRE_ALM[a.w]=a.n);   // Alcalá se conserva solo para leer pedidos antiguos
+const FRANJAS_LN={'001':[8,11],'002':[11,14],'003':[14,16]};
+const ARTICULO_GRUA='TVGRU15M';
+const origenComercial={};          // PLT -> origen para el CSV (4 por defecto)
+let contactosCliente=[], obrasCliente=[], obraElegida=null, coordsObra=null, almacenCalculado=null;
+
+function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function sinCeros(cod){ return String(cod||'').trim().replace(/^0+(?=.)/,''); }
+// Departamento = tienda vendedora + «V». Getafe trabaja como Getafe 2 en LN (A01V casi no se usa).
+function departamentoDe(tienda){ if(!tienda) return ''; return (tienda==='A01'?'A32':tienda)+'V'; }
+
+/* ---------- contactos y obras del cliente ---------- */
+async function cargarDatosLN(partner){
+  contactosCliente=[]; obrasCliente=[]; obraElegida=null; mostrarObraHint();
+  try{
+    const [c,o]=await Promise.all([getDoc(doc(db,'contactosLN',partner)), getDoc(doc(db,'obrasLN',partner))]);
+    contactosCliente=c.exists()?(c.data().lista||[]):[];
+    obrasCliente=o.exists()?(o.data().lista||[]):[];
+  }catch(e){ console.error('datos LN', e); showStatus('No se pudieron leer los contactos u obras de LN: '+e.message, false); }
+  pintarContactos(); mostrarObraHint();
+}
+function pintarContactos(){
+  const sel=document.getElementById('contacto_ln');
+  if(!clienteSeleccionado){ sel.innerHTML='<option value="">— Elige primero el cliente —</option>'; cambioContactoLN(); return; }
+  sel.innerHTML='<option value="">— Seleccionar —</option>'+
+    contactosCliente.map(c=>'<option value="'+esc(c.cod)+'">'+esc(c.nombre)+(c.principal?' (principal)':'')+(c.credito?' · ✓ crédito':' · sin crédito')+'</option>').join('')+
+    '<option value="OTRO">Otro (no está en LN)…</option>';
+  if(contactosCliente.length===1) sel.value=contactosCliente[0].cod;
+  document.getElementById('contacto_hint').textContent= contactosCliente.length
+    ? contactosCliente.length+' contacto(s) activo(s) en LN. Si no está el que necesitas, elige «Otro».'
+    : 'Este cliente no tiene contactos activos en LN: elige «Otro» y escribe el nombre.';
+  cambioContactoLN();
+}
+function contactoElegido(){ return contactosCliente.find(c=>c.cod===f('contacto_ln'))||null; }
+window.cambioContactoLN=function cambioContactoLN(){
+  const otro=f('contacto_ln')==='OTRO';
+  const inp=document.getElementById('contacto_autorizado');
+  inp.style.display=otro?'':'none'; if(!otro) inp.value='';
+  const c=contactoElegido(), h=document.getElementById('contacto_hint');
+  if(c) h.innerHTML=c.credito?'<span class="tag verde">✓ Autorizado a comprar a crédito</span>':'<span class="tag rojo">No autorizado a comprar a crédito</span>';
+  avisoCredito();
+};
+function avisoCredito(){
+  const c=contactoElegido(), fp=document.getElementById('forma_pago'); if(!fp) return;
+  let el=document.getElementById('aviso_credito');
+  if(!el){ el=document.createElement('div'); el.id='aviso_credito'; el.className='hint'; fp.parentNode.appendChild(el); }
+  el.innerHTML=(fp.value==='Crédito' && (f('contacto_ln')==='OTRO' || (c && !c.credito)))?'<span class="tag rojo">⚠ El contacto elegido no está autorizado a comprar a crédito en LN</span>':'';
+}
+window.avisoCredito=avisoCredito;
+function itemObra(o){ return {mainText:o.obra||o.cod, subText:[o.cp,o.mun].filter(Boolean).join(' ')+' · '+o.cod+' · último pedido '+(o.ult||'').split('-').reverse().join('/'), obraLN:o.cod, obra:o}; }
+function elegirObra(it){
+  obraElegida=it.obra; coordsObra=null;
+  document.getElementById('direccion').value=it.obra.obra||it.obra.cod;
+  document.getElementById('cp').value=(it.obra.cp||'').slice(0,5);
+  document.getElementById('municipio').value=it.obra.mun||'';
+  mostrarObraHint(); programarAlmacen();
+}
+function mostrarObraHint(){
+  const h=document.getElementById('obra_hint'); if(!h) return;
+  if(obraElegida) h.innerHTML='<span class="tag verde">Obra de LN '+esc(obraElegida.cod)+'</span>';
+  else if(f('direccion')) h.innerHTML='<span class="tag rojo">Dirección nueva: sin registrar en LN</span> Transporte la dará de alta.';
+  else h.textContent= obrasCliente.length ? 'Al tocar el campo salen las '+obrasCliente.length+' obras del cliente en LN. Si no está, escribe la dirección nueva.'
+                                         : 'Escribe la dirección de entrega.';
+}
+
+/* ---------- grúa: línea TVGRU15M automática ---------- */
+function renumerarLineas(){
+  const ls=document.querySelectorAll('#articulos-container .articulo-line');
+  ls.forEach((d,i)=>{ const n=d.querySelector('.num-linea'); if(n) n.textContent='Artículo '+(i+1)+(d.dataset.auto==='grua'?' · grúa (automática)':''); });
+  const c=document.getElementById('cuentaLineas');
+  if(c) c.textContent=ls.length>2?ls.length+' artículos. Desliza dentro del recuadro para ver todos.':'';
+}
+window.cambioGrua=function cambioGrua(){
+  const y=window.scrollY;   // no mover la pantalla al añadir o quitar la línea de grúa
+  const conGrua=getRadio('grua') && getRadio('grua')!=='No';
+  let linea=document.querySelector('.articulo-line[data-auto="grua"]');
+  if(conGrua && !linea){
+    addLine(); linea=document.getElementById('line-'+lineCount);
+    linea.dataset.auto='grua'; linea.classList.add('linea-auto');
+    document.getElementById('art_'+lineCount).value=ARTICULO_GRUA;
+    document.getElementById('uni_'+lineCount).value=1;
+    document.getElementById('desc_'+lineCount).value='TTEVTA HORA SERVICIO GRUA 15MTS X 1 HORA (automática)';
+  }
+  if(!conGrua && linea) linea.remove();
+  renumerarLineas();
+  window.scrollTo(0,y);
+};
+window.cambioRestringida=function cambioRestringida(){
+  document.getElementById('restr_box').style.display = getRadio('calle_restringida')==='Sí' ? '' : 'none';
+};
+
+/* ---------- stock (por bloques) y tiempo en coche ---------- */
+const bloquesStock={};
+async function stockDe(codigos){
+  const faltan=[...new Set(codigos.map(c=>'b_'+c.slice(-2)))].filter(b=>!(b in bloquesStock));
+  await Promise.all(faltan.map(async b=>{ const d=await getDoc(doc(db,'stockTransporte',b)); bloquesStock[b]=d.exists()?(d.data().arts||{}):{}; }));
+  const res={}; codigos.forEach(c=>res[c]=(bloquesStock['b_'+c.slice(-2)]||{})[c]||{}); return res;
+}
+async function coordenadasObra(){
+  const cp=f('cp'), mun=f('municipio');
+  if(!cp && !mun) return null;
+  const url='https://api.mapbox.com/geocoding/v5/mapbox.places/'+encodeURIComponent((cp+' '+mun).trim())+'.json?access_token='+MAPBOX_TOKEN+'&country=es&language=es&limit=1';
+  const d=await (await fetch(url)).json();
+  return (d.features&&d.features[0])?d.features[0].center:null;
+}
+function kmLinea(a,b){ const R=6371,r=Math.PI/180,dl=(b[1]-a[1])*r,dg=(b[0]-a[0])*r; const h=Math.sin(dl/2)**2+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.sin(dg/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+async function minutosEnCoche(c){
+  try{
+    const pts=[c].concat(ALMACENES_TRANSPORTE.map(a=>a.c)).map(p=>p[0]+','+p[1]).join(';');
+    const d=await (await fetch('https://api.mapbox.com/directions-matrix/v1/mapbox/driving/'+pts+'?sources=0&annotations=duration&access_token='+MAPBOX_TOKEN)).json();
+    if(d.code==='Ok'){ const m={}; ALMACENES_TRANSPORTE.forEach((a,i)=>m[a.w]=Math.round(d.durations[0][i+1]/60)); return {m, enCoche:true}; }
+  }catch(e){ console.error('matrix', e); }
+  const m={}; ALMACENES_TRANSPORTE.forEach(a=>m[a.w]=Math.round(kmLinea(c,a.c)/40*60)); return {m, enCoche:false};   // respaldo: línea recta a 40 km/h
+}
+function evaluarAlmacenes(lineas, stock, minutos){
+  const orden=ALMACENES_TRANSPORTE.slice().sort((a,b)=>minutos[a.w]-minutos[b.w]);
+  const eval_=orden.map(a=>({w:a.w, min:minutos[a.w], faltan:lineas.filter(l=>((stock[l.articuloCodigo]||{})[a.w]||[0])[0] < l.unidades).map(l=>l.articuloCodigo)}));
+  const completo=eval_.find(x=>!x.faltan.length);
+  const elegido=completo || eval_.slice().sort((a,b)=>a.faltan.length-b.faltan.length || a.min-b.min)[0];
+  return {elegido, eval_, completo:!!completo};
+}
+// 13/11/2026 (Rossy): el circuito de transporte (almacén sugerido + bandeja de carga) es solo para tiendas de MADRID.
+// Barcelona y Castilla y León, de momento fuera: su pedido se guarda y se envía como antes.
+function enCircuitoTransporte(){
+  const t=(tiendasCache||[]).find(a=>a.id===f('tienda'));
+  return !t || t.region==='MADRID';   // sin tienda elegida aún: se muestra la sección
+}
+let tAlmacen=null;
+window.programarAlmacen=function programarAlmacen(){ clearTimeout(tAlmacen); tAlmacen=setTimeout(calcularAlmacen, 700); };
+async function calcularAlmacen(){
+  const box=document.getElementById('almacenSug');
+  const sec=document.getElementById('almacenSec');
+  if(!enCircuitoTransporte()){ almacenCalculado=null; if(sec) sec.style.display='none'; return; }
+  if(sec) sec.style.display='';
+  const lineas=getLineas().filter(l=>l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA && l.unidades>0);
+  if(!lineas.length || (!f('cp') && !f('municipio'))){ almacenCalculado=null; box.className='alm-sug'; box.textContent='Elige la obra y los artículos para calcularlo.'; return; }
+  box.className='alm-sug'; box.textContent='Calculando…';
+  try{
+    const c=coordsObra || await coordenadasObra();
+    if(!c){ box.textContent='No encuentro la ubicación de la obra (revisa CP y municipio).'; almacenCalculado=null; return; }
+    const [tiempos, stock]=await Promise.all([minutosEnCoche(c), stockDe(lineas.map(l=>l.articuloCodigo))]);
+    const r=evaluarAlmacenes(lineas, stock, tiempos.m);
+    almacenCalculado={w:r.elegido.w, completo:r.completo, faltan:r.elegido.faltan, minutos:tiempos.m};
+    const u=tiempos.enCoche?' min en coche':' min (aprox.)';
+    let h='Sale de <b>'+esc(NOMBRE_ALM[r.elegido.w])+' ('+r.elegido.w+')</b> · '+r.elegido.min+u+' · '+(r.completo?'<span class="tag verde">stock completo</span>':'<span class="tag rojo">⚠ stock parcial</span>');
+    const antes=r.eval_.filter(x=>x.min<r.elegido.min);
+    if(antes.length) h+='<div class="hint">'+antes.map(x=>esc(NOMBRE_ALM[x.w])+' ('+x.min+' min) no tiene: '+x.faltan.map(cod=>{
+      const s=(stock[cod]||{})[x.w]; return esc(sinCeros(cod))+(s&&s[1]>0?' (llegan '+s[1]+(s[2]?' el '+s[2].split('-').reverse().slice(0,2).join('/'):'')+')':''); }).join(', ')).join(' · ')+'</div>';
+    if(!r.completo) h+='<div class="hint">Ningún almacén tiene todo: se propone el más cercano con más líneas completas. Lo revisa transporte.</div>';
+    box.className='alm-sug'+(r.completo?'':' parcial'); box.innerHTML=h;
+  }catch(e){ console.error(e); almacenCalculado=null; box.textContent='No se pudo calcular el almacén: '+e.message; }
+}
+
+/* ---------- BANDEJA DE CARGA ---------- */
+let enBandeja=false, pedidosCarga=[];
+window.alternarBandeja=function alternarBandeja(){ mostrarBandeja(!enBandeja); };
+window.mostrarBandeja=function mostrarBandeja(on){
+  enBandeja=on;
+  document.querySelector('.page').classList.toggle('ancha', on);
+  document.getElementById('pedidoForm').style.display=on?'none':'';
+  document.getElementById('barraPedido').style.display=on?'none':'';
+  document.getElementById('bandejaBox').style.display=on?'block':'none';
+  const b=document.getElementById('btnBandeja'); b.textContent=on?'📝 Nuevo pedido':'📦 Bandeja de carga';
+  if(perfilActual && perfilActual.rol==='carga') b.style.display='none';   // carga solo usa la bandeja
+  if(on) cargarBandeja();
+};
+async function cargarBandeja(){
+  const lista=document.getElementById('bandejaLista'); lista.textContent='Cargando...';
+  try{
+    const snap=await getDocs(query(collection(db,'pedidos'), where('estadoCarga','==','pendiente')));
+    pedidosCarga=[]; snap.forEach(d=>pedidosCarga.push(Object.assign({id:d.id}, d.data())));
+    pedidosCarga.sort((a,b)=>((a.creadoEn&&a.creadoEn.seconds)||0)-((b.creadoEn&&b.creadoEn.seconds)||0));
+    const codigos=[]; pedidosCarga.forEach(p=>(p.lineas||[]).forEach(l=>{ if(l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA) codigos.push(l.articuloCodigo); }));
+    const stock=codigos.length?await stockDe(codigos):{};
+    let meta=null; try{ const m=await getDoc(doc(db,'stockTransporte','_meta')); meta=m.exists()&&m.data().actualizado?m.data().actualizado.toDate():null; }catch(e){}
+    document.getElementById('bandejaInfo').textContent=pedidosCarga.length+' pedido(s) pendiente(s) de cargar en LN.'+(meta?' Stock de LN a las '+meta.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' del '+meta.toLocaleDateString('es-ES')+'.':'');
+    lista.innerHTML=pedidosCarga.length?pedidosCarga.map(p=>tarjetaCarga(p, stock)).join(''):'<div class="hint">No hay pedidos pendientes.</div>';
+  }catch(e){ console.error(e); lista.textContent='No se pudo cargar la bandeja: '+e.message; }
+}
+function franjasCompatibles(p){
+  const pide=/Mañana/.test(p.franjaHoraria||'')?[8,14]:/Tarde/.test(p.franjaHoraria||'')?[14,16]:[0,24];
+  const h2n=t=>{ const x=(t||'0:0').split(':'); return +x[0]+(+x[1]||0)/60; };
+  const win=p.calleRestringida&&p.restringidaDesde&&p.restringidaHasta?[h2n(p.restringidaDesde),h2n(p.restringidaHasta)]:[0,24];
+  return Object.keys(FRANJAS_LN).filter(k=>FRANJAS_LN[k][0]>=pide[0]&&FRANJAS_LN[k][1]<=pide[1]&&FRANJAS_LN[k][0]<win[1]&&FRANJAS_LN[k][1]>win[0]);
+}
+function tarjetaCarga(p, stock){
+  const lineas=(p.lineas||[]).filter(l=>l.articuloCodigo);
+  const lin=lineas.filter(l=>l.articuloCodigo!==ARTICULO_GRUA);
+  const faltanEn=w=>lin.filter(l=>((stock[l.articuloCodigo]||{})[w]||[0])[0]<l.unidades).map(l=>l.articuloCodigo);
+  const sug=p.almacenSugerido||'';
+  const opcAlm=ALMACENES_TRANSPORTE.map(a=>{ const fa=faltanEn(a.w); return '<option value="'+a.w+'"'+(a.w===sug?' selected':'')+'>'+a.w+' '+esc(a.n)+(p.minutosAlmacen&&p.minutosAlmacen[a.w]!=null?' · '+p.minutosAlmacen[a.w]+' min':'')+(fa.length?' · falta '+fa.length:' · completo')+(a.w===sug?' (sugerido)':'')+'</option>'; }).join('');
+  const fr=franjasCompatibles(p);
+  const opcFr='<option value="">— elegir franja —</option>'+fr.map(k=>'<option value="'+k+'">'+k+' · '+FRANJAS_LN[k][0]+'–'+FRANJAS_LN[k][1]+' h</option>').join('');
+  const av=avisosPedido(p).map(x=>'<div class="aviso-rojo">⚠ '+esc(x)+'</div>').join('');
+  const fecha=p.creadoEn&&p.creadoEn.toDate?p.creadoEn.toDate().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+  const tabla='<table class="tabla-stock"><tr><th>Artículo</th><th>Pide</th>'+ALMACENES_TRANSPORTE.map(a=>'<th>'+esc(a.n)+'</th>').join('')+'</tr>'+
+    lin.map(l=>'<tr><td>'+esc(sinCeros(l.articuloCodigo))+' <small>'+esc((l.descripcion||'').slice(0,28))+'</small></td><td>'+l.unidades+'</td>'+ALMACENES_TRANSPORTE.map(a=>{
+      const s=(stock[l.articuloCodigo]||{})[a.w]||[0,0,'']; return '<td><span class="'+(s[0]>=l.unidades?'ok':'mal')+'">'+Math.round(s[0]).toLocaleString('es-ES')+'</span>'+(s[1]>0?'<br><small class="amb">+'+Math.round(s[1]).toLocaleString('es-ES')+' en camino'+(s[2]?' ('+s[2].split('-').reverse().slice(0,2).join('/')+')':'')+'</small>':'')+'</td>'; }).join('')+'</tr>').join('')+'</table>';
+  return '<div class="ped-carga" id="pc_'+p.id+'">'+
+    '<h3>'+esc(p.clienteRazonSocial)+' · '+esc(sinCeros(p.clientePartner))+(p.prueba?' <span class="tag">prueba</span>':'')+'</h3>'+
+    '<div class="hint">'+esc(fecha)+' · '+esc(p.comercialNombre)+' · Tienda '+esc(p.tiendaNombre)+' → '+esc(p.departamento||'')+' · Origen '+esc(p.origen||'4')+'<br>'+
+    'Transporte: <b>'+esc((p.fechaTransporte||'').split('-').reverse().join('/'))+'</b> · Cliente pide: <b>'+esc(p.franjaHoraria)+'</b> · '+esc(p.direccion)+', '+esc(p.cp)+' '+esc(p.municipio)+'</div>'+
+    av+
+    '<div class="fila">'+
+      '<div><label>Almacén</label><select id="pc_alm_'+p.id+'">'+opcAlm+'</select></div>'+
+      '<div><label>Franja LN</label><select id="pc_fr_'+p.id+'">'+opcFr+'</select>'+(fr.length?'':'<div class="aviso-rojo">Ninguna franja encaja: hablar con el comercial</div>')+'</div>'+
+      '<div><label>Dirección LN (FO…)</label><input id="pc_dir_'+p.id+'" value="'+esc(p.obraLN||'')+'" placeholder="Código de la obra en LN"></div>'+
+      '<div><label>Contacto LN (CON…)</label><input id="pc_con_'+p.id+'" value="'+esc(p.contactoLN||'')+'" placeholder="Código del contacto en LN"></div>'+
+    '</div>'+
+    '<details style="margin-top:8px"><summary>Líneas y stock por almacén ('+lineas.length+' líneas)</summary>'+tabla+
+      (lineas.some(l=>l.articuloCodigo===ARTICULO_GRUA)?'<div class="hint">+ TVGRU15M × '+lineas.find(l=>l.articuloCodigo===ARTICULO_GRUA).unidades+' (grúa)</div>':'')+'</details>'+
+    '<button type="button" class="submit-btn" style="margin-top:10px" onclick="descargarCSV(\''+p.id+'\')">Descargar CSV y marcar como cargado en LN</button>'+
+    '<div class="hint">⚠ <b>Carga el CSV en LN tal cual se descarga, sin abrirlo con Excel.</b> Excel muestra la franja 001 como «1» y, si lo guardas, LN da error. Para revisarlo, ábrelo con el Bloc de notas; si lo abres con Excel, ciérralo con «No guardar».</div>'+
+    // 12/11/2026: si transporte crea el pedido en LN sin CSV, lo marca aquí con el motivo
+    '<details class="carga-manual" style="margin-top:10px;border-top:1px dashed var(--bm-blue-light);padding-top:8px"><summary style="cursor:pointer;font-weight:700;color:var(--bm-blue)">✋ Pedido creado en LN sin CSV</summary>'+
+      '<div class="fila" style="margin-top:6px">'+
+        '<div><label>Motivo</label><select id="pc_mot_'+p.id+'" onchange="document.getElementById(\'pc_motx_'+p.id+'\').style.display=this.value===\'Otro\'?\'\':\'none\'">'+
+          '<option value="Sin permiso para crear la dirección">Sin permiso para crear la dirección</option><option value="Otro">Otro motivo…</option></select>'+
+          '<input id="pc_motx_'+p.id+'" style="display:none;margin-top:4px;width:100%;box-sizing:border-box" placeholder="Escribe el motivo" maxlength="200"></div>'+
+        '<div><label>Nº de OV en LN (opcional)</label><input id="pc_ov_'+p.id+'" placeholder="Ej.: A32000123" maxlength="20"></div>'+
+      '</div>'+
+      '<button type="button" class="clear-btn" style="margin-top:8px;width:100%;font-weight:700;color:var(--bm-blue);border-color:var(--bm-blue)" onclick="marcarManual(\''+p.id+'\')">Marcar como creado sin CSV</button>'+
+    '</details>'+
+  '</div>';
+}
+window.marcarManual=async function marcarManual(id){
+  const p=pedidosCarga.find(x=>x.id===id); if(!p) return;
+  let mot=document.getElementById('pc_mot_'+id).value;
+  if(mot==='Otro'){ mot=document.getElementById('pc_motx_'+id).value.trim(); if(!mot){ alert('Escribe el motivo.'); return; } }
+  const ov=document.getElementById('pc_ov_'+id).value.trim().toUpperCase();
+  if(!confirm('¿Marcar el pedido de '+(p.clienteRazonSocial||'')+' como creado en LN sin CSV?\nSale de la bandeja.')) return;
+  const dir=document.getElementById('pc_dir_'+id).value.trim().toUpperCase(), con=document.getElementById('pc_con_'+id).value.trim().toUpperCase();
+  try{
+    await updateDoc(doc(db,'pedidos',id), {estadoCarga:'cargado', cargaManual:true, motivoManual:mot, ovLN:ov||null,
+      cargadoPor:perfilActual.email, cargadoEn:serverTimestamp(),
+      almacenCarga:document.getElementById('pc_alm_'+id).value, franjaLN:document.getElementById('pc_fr_'+id).value||null,
+      direccionLNCarga:dir||null, contactoLNCarga:con||null});
+    document.getElementById('pc_'+id).outerHTML='<div class="ped-carga"><span class="tag verde">Pedido creado en LN sin CSV</span> '+esc(p.clienteRazonSocial)+' · '+esc(mot)+(ov?' · OV '+esc(ov):'')+'</div>';
+  }catch(e){ console.error(e); alert('No se pudo marcar: '+e.message); }
+};
+function csvPedido(p, alm, fr, dir, con){
+  const cab='Departamento;Tipo de Orden;Cliente;Almacén;Contacto;Origen;Franja;Artículo;Cantidad;Direección de Entrega';
+  const filas=(p.lineas||[]).filter(l=>l.articuloCodigo&&l.unidades>0).map(l=>[p.departamento||'', p.tipoOrden||'P4', sinCeros(p.clientePartner), alm, con, p.origen||'4', fr, sinCeros(l.articuloCodigo), l.unidades, dir].join(';'));
+  return [cab].concat(filas).join('\r\n')+'\r\n';
+}
+function aWindows1252(t){ const b=new Uint8Array(t.length); for(let i=0;i<t.length;i++){ const c=t.charCodeAt(i); b[i]=c<256?c:(c===0x20AC?0x80:63); } return b; }
+window.descargarCSV=async function descargarCSV(id){
+  const p=pedidosCarga.find(x=>x.id===id); if(!p) return;
+  const alm=document.getElementById('pc_alm_'+id).value, fr=document.getElementById('pc_fr_'+id).value;
+  const dir=document.getElementById('pc_dir_'+id).value.trim().toUpperCase(), con=document.getElementById('pc_con_'+id).value.trim().toUpperCase();
+  const falta=[]; if(!fr) falta.push('la franja de LN'); if(!dir) falta.push('la dirección de LN (FO…)'); if(!con) falta.push('el contacto de LN (CON…)');
+  if(falta.length){ alert('Antes de descargar, rellena '+falta.join(', ')+'.'); return; }
+  const csv=csvPedido(p, alm, fr, dir, con);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([aWindows1252(csv)],{type:'text/csv'}));
+  a.download='Carga Ordenes de venta - '+sinCeros(p.clientePartner)+' - '+(p.fechaTransporte||'')+'.csv'; a.click();
+  try{
+    await updateDoc(doc(db,'pedidos',id), {estadoCarga:'cargado', cargadoPor:perfilActual.email, cargadoEn:serverTimestamp(),
+      almacenCarga:alm, franjaLN:fr, direccionLNCarga:dir, contactoLNCarga:con});
+    document.getElementById('pc_'+id).outerHTML='<div class="ped-carga"><span class="tag verde">Cargado en LN</span> '+esc(p.clienteRazonSocial)+' · CSV descargado.</div>';
+  }catch(e){ console.error(e); alert('El CSV se ha descargado, pero no se pudo marcar como cargado: '+e.message); }
+};
+
+/* ---------- medición de tiempos (31/10/2026): cuándo empieza el comercial a rellenar el pedido ---------- */
+let inicioFormulario=null;
+document.getElementById('pedidoForm').addEventListener('input', function(){ if(!inicioFormulario) inicioFormulario=new Date(); }, true);
+document.getElementById('pedidoForm').addEventListener('change', function(){ if(!inicioFormulario) inicioFormulario=new Date(); }, true);
+function datosTiempo(){
+  const fin=new Date();
+  return {inicioFormulario: inicioFormulario?inicioFormulario.toISOString():null,
+          segundosFormulario: inicioFormulario?Math.round((fin-inicioFormulario)/1000):null};
+}
+// al limpiar el formulario (también tras guardar) empieza a contar de nuevo el siguiente pedido
+const _limpiarOriginal=window.limpiarFormulario;
+window.limpiarFormulario=function(skip){ _limpiarOriginal(skip); inicioFormulario=null; };
+
 (async function init(){
   setFechaAuto();
   setMinDate();
   addLine();
   document.getElementById('cliente').addEventListener('input', function(){ buscarClienteDebounced(this.value); });
   document.getElementById('partner').addEventListener('input', function(){ buscarPartnerDebounced(this.value); });
-  document.getElementById('direccion').addEventListener('input', function(){ buscarDireccionDebounced(this.value); });
-  mostrarSugerenciasEnFoco('direccion','direccion_list',()=>sugerenciasCliente.direcciones,seleccionarDireccion);
+  document.getElementById('direccion').addEventListener('input', function(){ if(obraElegida){ obraElegida=null; } coordsObra=null; mostrarObraHint(); buscarDireccionDebounced(this.value); });
+  mostrarSugerenciasEnFoco('direccion','direccion_list',()=>obrasCliente.map(itemObra).concat(sugerenciasCliente.direcciones.map(x=>Object.assign({},x,{subText:(x.subText||'')+' · dirección de un pedido anterior (sin código LN)'}))),function(it){ it.obraLN ? elegirObra(it) : seleccionarDireccion(it); });
+  ['cp','municipio','tienda'].forEach(id=>document.getElementById(id).addEventListener('change', programarAlmacen));
   mostrarSugerenciasEnFoco('contacto_autorizado','contacto_autorizado_list',()=>sugerenciasCliente.contactosAutorizados,function(it){
     document.getElementById('contacto_autorizado').value=it.contacto;
   });
