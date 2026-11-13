@@ -120,6 +120,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .dif{color:#b45f00;font-size:12px}
 .seg-met{margin-top:10px;font-size:13px;color:#333}.seg-met summary{cursor:pointer;color:var(--bm-blue);font-weight:600}
 @media (max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.aviso-nuevo{position:fixed;top:-80px;left:50%;transform:translateX(-50%);z-index:500;background:var(--bm-blue);color:#fff;font-weight:700;font-size:15px;padding:12px 18px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;transition:top .3s;max-width:92vw}
+.aviso-nuevo.on{top:14px}
 .aviso-rojo{background:var(--bm-red-light);color:var(--bm-red);border:1px solid var(--bm-red);border-radius:6px;padding:4px 8px;font-weight:700;font-size:12px;margin-top:4px}
 .tabla-stock{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}
 .tabla-stock th{background:var(--bm-blue);color:#fff;padding:5px;text-align:right}.tabla-stock th:first-child{text-align:left}
@@ -351,7 +353,7 @@ import {
   query, where, orderBy, startAt, endAt, limit, serverTimestamp
 } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/auth/+esm';
-import { setDoc, updateDoc } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
+import { setDoc, updateDoc, onSnapshot } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
 
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
@@ -1099,19 +1101,58 @@ window.mostrarBandeja=function mostrarBandeja(on){
   if(perfilActual && perfilActual.rol==='carga') b.style.display='none';   // carga solo usa la bandeja
   if(on) cargarBandeja();
 };
+/* 13/11/2026 · la bandeja se actualiza sola (Firebase avisa de cada cambio):
+   - pedido nuevo → se añade su tarjeta y sale «🔔 Pedido nuevo» (con un pitido corto);
+   - pedido cargado por un compañero → su tarjeta se quita con un aviso;
+   - las tarjetas que ya están en pantalla NO se vuelven a pintar, para no perder lo que se está eligiendo. */
+let escuchaBandeja=null, stockBandeja={};
 async function cargarBandeja(){
-  const lista=document.getElementById('bandejaLista'); lista.textContent='Cargando...';
-  try{
-    const snap=await getDocs(query(collection(db,'pedidos'), where('estadoCarga','==','pendiente')));
-    pedidosCarga=[]; snap.forEach(d=>pedidosCarga.push(Object.assign({id:d.id}, d.data())));
+  const lista=document.getElementById('bandejaLista');
+  if(escuchaBandeja){ pintarInfoBandeja(); return; }   // ya está escuchando: no hace falta volver a leer
+  lista.textContent='Cargando...';
+  let primera=true;
+  escuchaBandeja=onSnapshot(query(collection(db,'pedidos'), where('estadoCarga','==','pendiente')), async function(snap){
+    const nuevos=[];
+    snap.docChanges().forEach(function(ch){
+      const p=Object.assign({id:ch.doc.id}, ch.doc.data());
+      const i=pedidosCarga.findIndex(x=>x.id===p.id);
+      if(ch.type==='added'){ if(i<0){ pedidosCarga.push(p); nuevos.push(p); } }
+      else if(ch.type==='modified'){ if(i>=0) pedidosCarga[i]=p; }
+      else if(ch.type==='removed'){
+        if(i>=0) pedidosCarga.splice(i,1);
+        const el=document.getElementById('pc_'+p.id);
+        if(el) el.outerHTML='<div class="ped-carga"><span class="tag verde">Cargado por un compañero</span> '+esc(p.clienteRazonSocial||'')+'</div>';
+      }
+    });
     pedidosCarga.sort((a,b)=>((a.creadoEn&&a.creadoEn.seconds)||0)-((b.creadoEn&&b.creadoEn.seconds)||0));
-    const codigos=[]; pedidosCarga.forEach(p=>(p.lineas||[]).forEach(l=>{ if(l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA) codigos.push(l.articuloCodigo); }));
-    const stock=codigos.length?await stockDe(codigos):{};
-    let meta=null; try{ const m=await getDoc(doc(db,'stockTransporte','_meta')); meta=m.exists()&&m.data().actualizado?m.data().actualizado.toDate():null; }catch(e){}
-    document.getElementById('bandejaInfo').textContent=pedidosCarga.length+' pedido(s) pendiente(s) de cargar en LN.'+(meta?' Stock de LN a las '+meta.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' del '+meta.toLocaleDateString('es-ES')+'.':'');
-    lista.innerHTML=pedidosCarga.length?pedidosCarga.map(p=>tarjetaCarga(p, stock)).join(''):'<div class="hint">No hay pedidos pendientes.</div>';
-    const tb=document.getElementById('tabPorCargar'); if(tb) tb.textContent='📦 Por cargar ('+pedidosCarga.length+')';
-  }catch(e){ console.error(e); lista.textContent='No se pudo cargar la bandeja: '+e.message; }
+    if(nuevos.length){
+      const codigos=[]; nuevos.forEach(p=>(p.lineas||[]).forEach(l=>{ if(l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA) codigos.push(l.articuloCodigo); }));
+      if(codigos.length){ try{ Object.assign(stockBandeja, await stockDe(codigos)); }catch(e){ console.error(e); } }
+    }
+    if(primera){
+      lista.innerHTML=pedidosCarga.length?pedidosCarga.map(p=>tarjetaCarga(p, stockBandeja)).join(''):'<div class="hint" id="bandejaVacia">No hay pedidos pendientes.</div>';
+      primera=false;
+    }else if(nuevos.length){
+      const vacia=document.getElementById('bandejaVacia'); if(vacia) vacia.remove();
+      nuevos.forEach(p=>{ if(!document.getElementById('pc_'+p.id)) lista.insertAdjacentHTML('beforeend', tarjetaCarga(p, stockBandeja)); });
+      avisoPedidoNuevo(nuevos);
+    }
+    pintarInfoBandeja();
+  }, function(e){ console.error(e); lista.textContent='No se pudo cargar la bandeja: '+e.message; escuchaBandeja=null; });
+}
+async function pintarInfoBandeja(){
+  let meta=null; try{ const m=await getDoc(doc(db,'stockTransporte','_meta')); meta=m.exists()&&m.data().actualizado?m.data().actualizado.toDate():null; }catch(e){}
+  document.getElementById('bandejaInfo').textContent=pedidosCarga.length+' pedido(s) pendiente(s) de cargar en LN. Se actualiza sola.'+(meta?' Stock de LN a las '+meta.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' del '+meta.toLocaleDateString('es-ES')+'.':'');
+  const tb=document.getElementById('tabPorCargar'); if(tb) tb.textContent='📦 Por cargar ('+pedidosCarga.length+')';
+  document.title=(pedidosCarga.length?'('+pedidosCarga.length+') ':'')+'Pedidos de Venta · BigMat';
+}
+function avisoPedidoNuevo(nuevos){
+  let a=document.getElementById('avisoNuevo');
+  if(!a){ a=document.createElement('div'); a.id='avisoNuevo'; a.className='aviso-nuevo'; document.body.appendChild(a); }
+  a.innerHTML='🔔 '+(nuevos.length>1?nuevos.length+' pedidos nuevos':'Pedido nuevo')+': '+nuevos.map(p=>esc(p.clienteRazonSocial||'')).join(', ');
+  a.classList.add('on'); clearTimeout(a._t); a._t=setTimeout(()=>a.classList.remove('on'), 8000);
+  a.onclick=function(){ a.classList.remove('on'); const el=document.getElementById('pc_'+nuevos[0].id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); };
+  try{ const ac=new (window.AudioContext||window.webkitAudioContext)(); const o=ac.createOscillator(), g=ac.createGain(); o.frequency.value=880; g.gain.value=0.08; o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime+0.18); }catch(e){}
 }
 function franjasCompatibles(p){
   const pide=/Mañana/.test(p.franjaHoraria||'')?[8,14]:/Tarde/.test(p.franjaHoraria||'')?[14,16]:[0,24];
@@ -1248,20 +1289,30 @@ function estadoSeg(p){
   const c=p.cargadoEn&&p.cargadoEn.toDate?p.cargadoEn.toDate():null;
   return c && horasTransporte(c, new Date())>2 ? 'sin' : 'espera';
 }
+// 13/11/2026 · Seguimiento en LN también en vivo: cuando la carga de cada hora escribe la OV, la tabla se actualiza sola
+let escuchaSeg=null, filtrosSegMontados=false;
 async function cargarSeguimiento(){
-  const tb=document.getElementById('segTabla'); tb.innerHTML='<tr><td colspan="5">Cargando...</td></tr>';
-  try{
-    const snap=await getDocs(query(collection(db,'pedidos'), where('estadoCarga','==','cargado')));
+  const tb=document.getElementById('segTabla');
+  if(escuchaSeg){ pintarSeguimiento(); return; }
+  tb.innerHTML='<tr><td colspan="5">Cargando...</td></tr>';
+  escuchaSeg=onSnapshot(query(collection(db,'pedidos'), where('estadoCarga','==','cargado')), async function(snap){
     const lim=Date.now()-14*864e5;
     pedidosSeg=[];
     snap.forEach(d=>{ const x=d.data(); const c=x.cargadoEn&&x.cargadoEn.toDate?x.cargadoEn.toDate():null; if(c && c.getTime()>=lim && x.creadoEn) pedidosSeg.push(Object.assign({id:d.id}, x)); });
     pedidosSeg.sort((a,b)=>b.creadoEn.seconds-a.creadoEn.seconds);
     let meta=null; try{ const m=await getDoc(doc(db,'stockTransporte','_metaOV')); meta=m.exists()&&m.data().actualizado?m.data().actualizado.toDate():null; }catch(e){}
-    document.getElementById('segInfo').textContent='Pedidos cargados en los últimos 14 días.'+(meta?' LN consultado a las '+meta.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' del '+meta.toLocaleDateString('es-ES')+' (se actualiza cada hora, de lunes a viernes de 8 a 18 h).':'');
-    montarFiltroSeg('segTienda','Tienda',[...new Set(pedidosSeg.map(p=>p.tiendaNombre||'—'))].sort());
-    montarFiltroSeg('segEstado','Estado',Object.keys(ESTADOS_SEG).map(k=>ESTADOS_SEG[k]),'Todos');
+    document.getElementById('segInfo').textContent='Pedidos cargados en los últimos 14 días. Se actualiza sola.'+(meta?' LN consultado a las '+meta.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' del '+meta.toLocaleDateString('es-ES')+' (cada hora, de lunes a viernes de 8 a 18 h).':'');
+    if(!filtrosSegMontados){
+      montarFiltroSeg('segTienda','Tienda',[...new Set(pedidosSeg.map(p=>p.tiendaNombre||'—'))].sort());
+      montarFiltroSeg('segEstado','Estado',Object.keys(ESTADOS_SEG).map(k=>ESTADOS_SEG[k]),'Todos');
+      filtrosSegMontados=true;
+    }else{
+      // tiendas nuevas que aparezcan después: se añaden marcadas, sin tocar lo que ya se ha filtrado
+      const box=document.querySelector('#segTienda > div');
+      [...new Set(pedidosSeg.map(p=>p.tiendaNombre||'—'))].forEach(t=>{ if(!box.querySelector('input[value="'+t.replace(/"/g,'')+'"]')){ box.insertAdjacentHTML('beforeend','<label><input type="checkbox" checked value="'+esc(t)+'"> '+esc(t)+'</label>'); box.lastElementChild.querySelector('input').onchange=()=>pintarSeguimiento(); } });
+    }
     pintarSeguimiento();
-  }catch(e){ console.error(e); tb.innerHTML='<tr><td colspan="5">No se pudo cargar el seguimiento: '+esc(e.message)+'</td></tr>'; }
+  }, function(e){ console.error(e); tb.innerHTML='<tr><td colspan="5">No se pudo cargar el seguimiento: '+esc(e.message)+'</td></tr>'; escuchaSeg=null; });
 }
 function montarFiltroSeg(id, nombre, valores, todos){
   todos=todos||'Todas';
