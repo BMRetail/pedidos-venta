@@ -265,7 +265,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       </button>
     </div>
 
-    <div class="section">
+    <div class="section" id="almacenSec">
       <div class="section-title">Almacén que sirve (propuesta automática)</div>
       <div class="alm-sug" id="almacenSug">Elige la obra y los artículos para calcularlo.</div>
       <div class="hint">El más cercano en coche a la obra con stock disponible de todo el pedido. Transporte o administración lo pueden cambiar.</div>
@@ -418,6 +418,7 @@ async function cargarTiendas(){
     const a=d.data();
     if(a.activo===false) return;
     if(TIENDAS_OCULTAS.has(d.id)) return;
+    if(a.region!=='MADRID') return;   // Barcelona y Castilla y León: fuera hasta su lanzamiento (13/11/2026)
     items.push({id:d.id,...a});
   });
   items.sort(function(a,b){
@@ -736,7 +737,7 @@ window.enviarPedido=async function enviarPedido(){
     departamento:departamentoDe(f('tienda')),
     tipoOrden:'P4',
     origen:origenComercial[f('comercial')]||'4',
-    estadoCarga:'pendiente',
+    estadoCarga:enCircuitoTransporte()?'pendiente':null,
     prueba:true,
     ...datosTiempo(),
     contactoObra:f('contacto_obra'), telefonoObra:f('tlfo1'),
@@ -858,6 +859,7 @@ async function alEntrar(user){
     catch(err){ console.error(err); showStatus('No se pudieron cargar Comerciales/Tiendas desde Firestore: '+err.message, false); }
   }
   fijarComercialDelUsuario();
+  if(p.rol!=='admin'){ location.replace('./'); return; }   // solo administración usa la versión de prueba
   const puedeCargar = p.rol==='carga' || p.rol==='admin';
   document.getElementById('btnBandeja').style.display = puedeCargar ? '' : 'none';
   if(p.rol==='carga') mostrarBandeja(true);
@@ -887,10 +889,10 @@ const ALMACENES_TRANSPORTE=[
   {w:'A32A', n:'Getafe 2',   c:[-3.692618,40.294]},     // c/ Hipatia 2, 28906 Getafe
   {w:'A06A', n:'Alcorcón',   c:[-3.83633,40.359832]},   // Av. América 34, 28922 Alcorcón
   {w:'A10A', n:'Alcobendas', c:[-3.650272,40.53155]},   // c/ Metalurgia 11, 28108 Alcobendas
-  {w:'A11A', n:'Alcalá',     c:[-3.385122,40.491377]},  // c/ Louis Pasteur 15, 28806 Alcalá de Henares
+  // {w:'A11A', n:'Alcalá', c:[-3.385122,40.491377]},  // OCULTO 13/11/2026 (Rossy): de momento Alcalá no sirve transporte
   {w:'A34A', n:'Illescas',   c:[-3.825695,40.148489]},  // Av. de las Naciones 17, 45200 Illescas
 ];
-const NOMBRE_ALM={}; ALMACENES_TRANSPORTE.forEach(a=>NOMBRE_ALM[a.w]=a.n);
+const NOMBRE_ALM={A11A:'Alcalá'}; ALMACENES_TRANSPORTE.forEach(a=>NOMBRE_ALM[a.w]=a.n);   // Alcalá se conserva solo para leer pedidos antiguos
 const FRANJAS_LN={'001':[8,11],'002':[11,14],'003':[14,16]};
 const ARTICULO_GRUA='TVGRU15M';
 const origenComercial={};          // PLT -> origen para el CSV (4 por defecto)
@@ -1011,10 +1013,19 @@ function evaluarAlmacenes(lineas, stock, minutos){
   const elegido=completo || eval_.slice().sort((a,b)=>a.faltan.length-b.faltan.length || a.min-b.min)[0];
   return {elegido, eval_, completo:!!completo};
 }
+// 13/11/2026 (Rossy): el circuito de transporte (almacén sugerido + bandeja de carga) es solo para tiendas de MADRID.
+// Barcelona y Castilla y León, de momento fuera: su pedido se guarda y se envía como antes.
+function enCircuitoTransporte(){
+  const t=(tiendasCache||[]).find(a=>a.id===f('tienda'));
+  return !t || t.region==='MADRID';   // sin tienda elegida aún: se muestra la sección
+}
 let tAlmacen=null;
 window.programarAlmacen=function programarAlmacen(){ clearTimeout(tAlmacen); tAlmacen=setTimeout(calcularAlmacen, 700); };
 async function calcularAlmacen(){
   const box=document.getElementById('almacenSug');
+  const sec=document.getElementById('almacenSec');
+  if(!enCircuitoTransporte()){ almacenCalculado=null; if(sec) sec.style.display='none'; return; }
+  if(sec) sec.style.display='';
   const lineas=getLineas().filter(l=>l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA && l.unidades>0);
   if(!lineas.length || (!f('cp') && !f('municipio'))){ almacenCalculado=null; box.className='alm-sug'; box.textContent='Elige la obra y los artículos para calcularlo.'; return; }
   box.className='alm-sug'; box.textContent='Calculando…';
@@ -1164,7 +1175,7 @@ window.limpiarFormulario=function(skip){ _limpiarOriginal(skip); inicioFormulari
   document.getElementById('partner').addEventListener('input', function(){ buscarPartnerDebounced(this.value); });
   document.getElementById('direccion').addEventListener('input', function(){ if(obraElegida){ obraElegida=null; } coordsObra=null; mostrarObraHint(); buscarDireccionDebounced(this.value); });
   mostrarSugerenciasEnFoco('direccion','direccion_list',()=>obrasCliente.map(itemObra).concat(sugerenciasCliente.direcciones.map(x=>Object.assign({},x,{subText:(x.subText||'')+' · dirección de un pedido anterior (sin código LN)'}))),function(it){ it.obraLN ? elegirObra(it) : seleccionarDireccion(it); });
-  ['cp','municipio'].forEach(id=>document.getElementById(id).addEventListener('change', programarAlmacen));
+  ['cp','municipio','tienda'].forEach(id=>document.getElementById(id).addEventListener('change', programarAlmacen));
   mostrarSugerenciasEnFoco('contacto_autorizado','contacto_autorizado_list',()=>sugerenciasCliente.contactosAutorizados,function(it){
     document.getElementById('contacto_autorizado').value=it.contacto;
   });
