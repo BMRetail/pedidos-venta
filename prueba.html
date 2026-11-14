@@ -356,9 +356,11 @@ import {
 } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/auth/+esm';
 import { setDoc, updateDoc, onSnapshot } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getDocFromCache, getDocsFromCache } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm';
 
 const app = initializeApp(FIREBASE_CONFIG);
-const db = getFirestore(app);
+let db; try{ db = initializeFirestore(app, {localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})}); }
+catch(e){ console.error('caché local no disponible', e); db = getFirestore(app); }   // datos guardados en el móvil (14/11/2026)
 const auth = getAuth(app);
 auth.languageCode = 'es';
 
@@ -437,9 +439,10 @@ const TIENDAS_OCULTAS=new Set(['L91','L93','L94','L95','S03','S04','S06','S23','
 // Orden de regiones pedido para el desplegable de Tienda: Madrid, Barcelona,
 // Castilla y León primero (en ese orden), el resto (SEDE, etc.) al final.
 const ORDEN_REGIONES=['MADRID','BARCELONA','CASTILLA_Y_LEON'];
-async function cargarComerciales(){
+async function cargarComerciales(snapDado){
   const sel=document.getElementById('comercial');
-  const snap=await getDocs(collection(db,'comerciales'));
+  const snap=snapDado||await getDocsRapido(collection(db,'comerciales'), cargarComerciales);
+  const valor=sel.value; sel.querySelectorAll('option').forEach(o=>{ if(o.value) o.remove(); });
   const items=[];
   snap.forEach(function(d){
     const c=d.data();
@@ -454,10 +457,12 @@ async function cargarComerciales(){
     opt.value=it.id; opt.textContent=it.nombre;
     sel.appendChild(opt);
   });
+  if(valor) sel.value=valor;
 }
-async function cargarTiendas(){
+async function cargarTiendas(snapDado){
   const sel=document.getElementById('tienda');
-  const snap=await getDocs(collection(db,'tiendas'));
+  const snap=snapDado||await getDocsRapido(collection(db,'tiendas'), cargarTiendas);
+  const valor=sel.value; sel.querySelectorAll('option').forEach(o=>{ if(o.value) o.remove(); }); tiendasCache.length=0;
   const items=[];
   snap.forEach(function(d){
     const a=d.data();
@@ -478,6 +483,7 @@ async function cargarTiendas(){
     opt.value=a.id; opt.textContent=(a.nombre||a.id)+(a.region?' ('+a.region+')':'');
     sel.appendChild(opt);
   });
+  if(valor) sel.value=valor;
 }
 
 /* ---------- autocompletado: clientes (Cliente <-> Partner) ---------- */
@@ -506,10 +512,13 @@ async function buscarClientePorNombre(term){
   if(!term){ listEl.classList.remove('open'); return; }
   const termLower=term.toLowerCase();
   const q=query(collection(db,'clientes'), orderBy('razonSocialLower'), startAt(termLower), endAt(termLower+''), limit(8));
-  const snap=await getDocs(q);
-  const items=[];
-  snap.forEach(function(d){ const c=d.data(); items.push({mainText:c.razonSocial,subText:'Partner: '+d.id,partner:d.id,razonSocial:c.razonSocial,contacto:c.contactoAutorizadoHabitual}); });
-  renderAutocomplete(listEl, items, onClienteSeleccionado);
+  const items=buscarClienteLocal(term), vistos=new Set(items.map(x=>x.partner));
+  try{
+    const snap=await getDocs(q);
+    snap.forEach(function(d){ if(vistos.has(d.id)) return; const c=d.data(); items.push({mainText:c.razonSocial,subText:'Partner: '+d.id,partner:d.id,razonSocial:c.razonSocial,contacto:c.contactoAutorizadoHabitual}); });
+  }catch(e){ console.error('clientes', e); }
+  if(document.getElementById('cliente').value!==term) return;   // respuesta vieja: ya se ha escrito otra cosa
+  renderAutocomplete(listEl, items.slice(0,10), onClienteSeleccionado);
 }
 
 async function buscarClientePorPartner(term){
@@ -878,7 +887,7 @@ window.cerrarSesion = async function cerrarSesion(){
 async function alEntrar(user){
   const email=(user.email||'').toLowerCase();
   let p=null;
-  try{ const s=await getDoc(doc(db,'usuarios',email)); if(s.exists()) p=s.data(); }catch(e){ console.error('perfil', e); }
+  try{ const s=await getDocRapido(doc(db,'usuarios',email)); if(s.exists()) p=s.data(); }catch(e){ console.error('perfil', e); }
   if(ADMINS.includes(email)) p=Object.assign({nombre:email}, p||{}, {rol:'admin', activo:true});
   if(!p || p.activo!==true){
     mensajeLogin='Tu usuario no tiene acceso a esta aplicación. Contacta con Rossy Cuenca (rossy.cuenca@bigmat.biz).';
@@ -890,14 +899,14 @@ async function alEntrar(user){
   document.getElementById('barraPedido').style.display='';
   document.getElementById('sesionBar').style.display='flex';
   document.getElementById('sesionNombre').textContent=p.nombre||email;
-  try{
+  (async()=>{ try{
     const ahora=new Date().toISOString(), ua=navigator.userAgent.replace(/\s+/g,' ').slice(0,160);
     const k=Array.from(ua).reduce(function(h,c){ return (h*31+c.charCodeAt(0))>>>0; },7).toString(36);
     const datos={email:email, nombre:p.nombre||'', ultimo:ahora, ultimaApp:'pedidos', dispositivos:{}}; datos.dispositivos[k]={ua:ua, ultimo:ahora};
     const ref=doc(db,'accesos',email);
     if(!(await getDoc(ref)).exists()) datos.primero=ahora;
     await setDoc(ref, datos, {merge:true});
-  }catch(e){ console.error('acceso', e); }
+  }catch(e){ console.error('acceso', e); } })();   // el registro de acceso va en segundo plano: no frena la entrada
   if(!datosCargados){
     datosCargados=true;
     try{ await Promise.all([cargarComerciales(), cargarTiendas()]); }
@@ -952,13 +961,14 @@ function departamentoDe(tienda){ if(!tienda) return ''; return (tienda==='A01'?'
 /* ---------- contactos y obras del cliente ---------- */
 async function cargarDatosLN(partner){
   contactosCliente=[]; obrasCliente=[]; obraElegida=null; mostrarObraHint();
+  const pCompras=cargarComprasCliente(partner);   // a la vez que contactos y obras
   try{
     const [c,o]=await Promise.all([getDoc(doc(db,'contactosLN',partner)), getDoc(doc(db,'obrasLN',partner))]);
     contactosCliente=c.exists()?(c.data().lista||[]):[];
     obrasCliente=o.exists()?(o.data().lista||[]):[];
   }catch(e){ console.error('datos LN', e); showStatus('No se pudieron leer los contactos u obras de LN: '+e.message, false); }
   pintarContactos(); mostrarObraHint();
-  await cargarComprasCliente(partner);
+  await pCompras;
 }
 function pintarContactos(){
   const sel=document.getElementById('contacto_ln');
@@ -1366,6 +1376,25 @@ function pintarSeguimiento(){
    - Solo añade el botón +. La línea entra con artículo y descripción fijos y SIN cantidad (la última cantidad es solo referencia).
    - Con el buscador vacío, al pulsarlo: «Lo que más compra este cliente». Se cierra al pulsar fuera y se vacía al elegir.
    Solo en la versión de PRUEBA (construir_prueba.py). */
+/* ---------- RAPIDEZ (14/11/2026): Firestore guarda los datos en el móvil (caché persistente) ----------
+   getDocRapido / getDocsRapido: si el dato ya está en el móvil se usa al instante y se refresca en segundo plano;
+   si no está, se pide al servidor como siempre. */
+function huellaSnap(s){ return (s.docs||[]).map(d=>d.id+':'+JSON.stringify(d.data())).join('|'); }
+async function getDocsRapido(ref, repintar){
+  try{
+    const c=await getDocsFromCache(ref);
+    if(!c.empty){
+      getDocs(ref).then(s=>{ if(repintar && huellaSnap(s)!==huellaSnap(c)) repintar(s); }).catch(e=>console.error('refresco', e));
+      return c;
+    }
+  }catch(e){}
+  return await getDocs(ref);
+}
+async function getDocRapido(ref){
+  try{ const c=await getDocFromCache(ref); if(c.exists()){ getDoc(ref).catch(()=>{}); return c; } }catch(e){}
+  return await getDoc(ref);
+}
+
 let comprasCliente=[], COMPRAS={}, catalogoApp=null, CAT_IDX={}, estadoCatalogo='sin cargar';
 const UDS_ART={un:'unidades',pce:'piezas',pz:'piezas',cj:'cajas',rl:'rollos',bol:'bolsas',pk:'paquetes',pq:'paquetes',sac:'sacos',sc:'sacos',ml:'metros',m:'metros',m2:'m²',m3:'m³',kg:'kg',l:'litros',lt:'litros',pal:'palés',plt:'palés',tn:'toneladas',t:'toneladas'};
 const SING_ART={unidades:'unidad',piezas:'pieza',cajas:'caja',rollos:'rollo',bolsas:'bolsa',paquetes:'paquete',sacos:'saco',metros:'metro',litros:'litro','palés':'palé',toneladas:'tonelada'};
@@ -1394,6 +1423,7 @@ const encajaArt=(p,t)=>t.some(w=>w.startsWith(p)||(w.length>=3&&/^[a-zñ]+$/.tes
 .res-art .mas{flex:0 0 auto;min-width:44px;min-height:40px;border:0;border-radius:20px;background:var(--bm-blue);color:#fff;font-weight:800;font-size:18px;cursor:pointer}
 .res-art .mas.ya{background:var(--bm-green);font-size:14px}
 .res-art .vacio{padding:12px;text-align:center;color:#646568;font-size:13px}
+#articulos-container:empty{display:none}
 .articulo-line input.fijo{background:#f4f6fa;border-color:#d5dcea;color:#1a1a2e}
 .articulo-line input.pide{border-color:#9a5b00;background:#fff4e0}
 .articulo-line .hist{font-size:12px;color:var(--bm-blue);margin-top:6px;background:#fff;border-radius:6px;padding:4px 8px;border:1px solid var(--bm-blue-light)}`;
@@ -1418,15 +1448,36 @@ async function cargarCatalogoApp(){
     catalogoApp=guardado.map(a=>({c:a[0],d:a[1],k:a[2],ud:a[3],t:toksArt(a[0]+' '+sinCeros(a[0])+' '+a[1]+' '+a[2])}));
     CAT_IDX={}; catalogoApp.forEach(a=>CAT_IDX[a.c]=a);
     estadoCatalogo='ok';
+    // 14/11/2026: clientes con comercial, para buscar por cualquier palabra de la razón social
+    let clis=null;
+    try{ if(localStorage.getItem('cliApp_v')===m.cliVersion) clis=JSON.parse(localStorage.getItem('cliApp')||'null'); }catch(e){}
+    if(!clis && m.cliPartes){
+      const ps=await Promise.all(m.cliPartes.map(p=>getDoc(doc(db,'catalogoApp',p))));
+      clis=[]; ps.forEach(p=>{ if(p.exists()) clis=clis.concat(p.data().lista||[]); });
+      try{ localStorage.setItem('cliApp',JSON.stringify(clis)); localStorage.setItem('cliApp_v',m.cliVersion); }catch(e){}
+    }
+    clientesApp=(clis||[]).map(c=>({p:c[0],n:c[1],t:toksArt(c[1])}));
   }catch(e){ console.error('catálogo', e); estadoCatalogo='error'; }
-  if(document.activeElement && document.activeElement.id==='buscaArt') buscarArt();
+  // si el comercial ya estaba escribiendo mientras se descargaba, se repinta (14/11/2026)
+  const q=document.getElementById('buscaArt');
+  if(q && (document.activeElement===q || q.value)) buscarArt();
 }
+let clientesApp=[];
+// búsqueda de cliente por cualquier palabra (en cualquier orden): «cosaira» encuentra «CONSTR. Y MANTENIMIENTO COSAIRA»
+window.buscarClienteLocal=function(term){
+  const pal=toksArt(term).filter(w=>!['y','de','del','la','el','los','las','s','sl','sa','slu'].includes(w));
+  if(!pal.length) return [];
+  return clientesApp.filter(c=>pal.every(p=>c.t.some(w=>w.startsWith(p)))).slice(0,8)
+    .map(c=>({mainText:c.n, subText:'Partner: '+c.p, partner:c.p, razonSocial:c.n}));
+};
 async function cargarComprasCliente(partner){
   comprasCliente=[]; COMPRAS={};
   try{
     const r=await getDoc(doc(db,'comprasLN',partner));
     (r.exists()?(r.data().lista||[]):[]).forEach(x=>{ const a={c:x[0],n:x[1],uf:x[2],uq:x[3],ud:x[4]}; comprasCliente.push(a); COMPRAS[a.c]=a; });
   }catch(e){ console.error('compras del cliente', e); }
+  const q=document.getElementById('buscaArt');
+  if(q && (document.activeElement===q || q.value)) buscarArt();
 }
 function datosArt(a){   // completa la compra con la descripción del catálogo (si no está, ya no se puede pedir en la app)
   const c=CAT_IDX[a.c];
@@ -1459,9 +1510,9 @@ window.buscarArt=function buscarArt(){
   const comp=compras.filter(a=>pal.every(p=>encajaArt(p,a.t))).sort((x,y)=>(y.act-x.act));
   const yaC=new Set(comp.map(a=>a.c));
   const cat=(catalogoApp||[]).filter(a=>!yaC.has(a.c) && pal.every(p=>encajaArt(p,a.t)));
-  r.innerHTML='<div class="grupo"><span>⭐ Ya lo compra este cliente</span><span>'+comp.length+'</span></div>'+
-    (comp.length?comp.slice(0,20).map(filaCompraArt).join(''):'<div class="vacio">No ha comprado nada así en 12 meses.</div>')+
-    '<div class="grupo cat"><span>📦 Resto del catálogo</span><span>'+cat.length.toLocaleString('es-ES')+'</span></div>'+
+  // 14/11/2026 (Rossy): el bloque «Ya lo compra» solo sale si hay resultados que ya ha comprado
+  r.innerHTML=(comp.length?'<div class="grupo"><span>⭐ Ya lo compra este cliente</span><span>'+comp.length+'</span></div>'+comp.slice(0,20).map(filaCompraArt).join(''):'')+
+    '<div class="grupo cat"><span>📦 '+(comp.length?'Resto del catálogo':'Catálogo')+'</span><span>'+cat.length.toLocaleString('es-ES')+'</span></div>'+
     (aviso||(cat.length?cat.slice(0,30).map(filaCatArt).join('')+(cat.length>30?'<div class="vacio">Hay '+(cat.length-30).toLocaleString('es-ES')+' más: añade otra palabra (marca, color, kg…).</div>':''):'<div class="vacio">Sin resultados en el catálogo.</div>'));
 };
 window.limpiarBuscadorArt=function(){ const q=document.getElementById('buscaArt'); if(q) q.value=''; const r=document.getElementById('resArt'); if(r) r.innerHTML=''; };
