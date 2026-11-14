@@ -1564,7 +1564,8 @@ document.addEventListener('pointerdown',e=>{ if(!e.target.closest('.busc-art') &
 const PARAMS_RUTERO=new URLSearchParams(location.search);
 const ENTRADA={cliente:(PARAMS_RUTERO.get('cliente')||'').replace(/[^0-9A-Za-z]/g,'').slice(0,12),
                visita:(PARAMS_RUTERO.get('visita')||'').replace(/[^0-9A-Za-z_-]/g,'').slice(0,40),
-               desde:PARAMS_RUTERO.get('desde')||''};
+               desde:PARAMS_RUTERO.get('desde')||'',
+               comercial:(PARAMS_RUTERO.get('comercial')||'').replace(/[^0-9A-Za-z]/g,'').slice(0,20)};
 // solo se vuelve a las dos direcciones del Rutero (nunca a una dirección que llegue por el enlace)
 const URL_RUTERO=ENTRADA.desde==='rutero-prueba'?'https://bmretail.github.io/rutero-comercial/prueba.html':'https://bmretail.github.io/rutero-comercial/';
 const DESDE_RUTERO=ENTRADA.desde==='rutero'||ENTRADA.desde==='rutero-prueba';
@@ -1653,6 +1654,12 @@ async function recuperarBorrador(b){
 
 /* ---------- al entrar: borrador pendiente y cliente que llega del Rutero ---------- */
 async function aplicarEntradaRutero(){
+  // supervisión/administración que pasa un pedido en nombre de un comercial (desde «Herramientas del comercial»).
+  // Un comercial no puede cambiarlo: su desplegable está bloqueado a su nombre.
+  if(ENTRADA.comercial){
+    const sel=document.getElementById('comercial');
+    if(sel && !sel.disabled && Array.from(sel.options).some(o=>o.value===ENTRADA.comercial)){ sel.value=ENTRADA.comercial; sel.dispatchEvent(new Event('change',{bubbles:true})); }
+  }
   const b=leerBorrador();
   if(b && (b.lineas.length || b.partner) && Date.now()-b.t < 7*86400000){
     // si llega del Rutero con el mismo cliente del borrador, se recupera directamente
