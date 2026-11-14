@@ -286,10 +286,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="section">
       <div class="section-title">Líneas de pedido</div>
       <div class="cuenta-lineas" id="cuentaLineas"></div>
+      <div class="busc-art"><span class="lupa">🔍</span>
+        <input type="search" id="buscaArt" placeholder="Código o palabras: mortero cola blanco" autocomplete="off" oninput="buscarArt()" onfocus="buscarArt()">
+      </div>
+      <div class="res-art" id="resArt"></div>
+      <div class="hint">Primero sale lo que <b>ya compra este cliente</b>; debajo, el resto del catálogo. Pulsa <b>+</b> y escribe las unidades.</div>
       <div id="articulos-container"></div>
-      <button type="button" class="add-line-btn" onclick="addLine()">
-        <span style="font-size:20px;line-height:1">+</span> Añadir artículo
-      </button>
     </div>
 
     <div class="section" id="almacenSec">
@@ -820,7 +822,7 @@ window.limpiarFormulario=function limpiarFormulario(skipConfirm){
   document.getElementById('almacenSug').className='alm-sug'; document.getElementById('almacenSug').textContent='Elige la obra y los artículos para calcularlo.';
   document.querySelectorAll('.error').forEach(function(el){ el.classList.remove('error'); });
   document.getElementById('articulos-container').innerHTML='';
-  lineCount=0; addLine();
+  lineCount=0; renumerarLineas(); limpiarBuscadorArt(); comprasCliente=[]; COMPRAS={};
   fijarComercialDelUsuario();  // el comercial del usuario se mantiene tras limpiar
   document.getElementById('statusBanner').classList.remove('show');
   clienteSeleccionado=null;
@@ -903,6 +905,7 @@ async function alEntrar(user){
   }
   fijarComercialDelUsuario();
   if(p.rol!=='admin'){ location.replace('./'); return; }   // solo administración usa la versión de prueba
+  cargarCatalogoApp();
   const puedeCargar = p.rol==='carga' || p.rol==='admin';
   document.getElementById('btnBandeja').style.display = puedeCargar ? '' : 'none';
   if(p.rol==='carga') mostrarBandeja(true);
@@ -955,6 +958,7 @@ async function cargarDatosLN(partner){
     obrasCliente=o.exists()?(o.data().lista||[]):[];
   }catch(e){ console.error('datos LN', e); showStatus('No se pudieron leer los contactos u obras de LN: '+e.message, false); }
   pintarContactos(); mostrarObraHint();
+  await cargarComprasCliente(partner);
 }
 function pintarContactos(){
   const sel=document.getElementById('contacto_ln');
@@ -1355,10 +1359,152 @@ function pintarSeguimiento(){
   }).join('') || '<tr><td colspan="5"><small>Sin pedidos con estos filtros.</small></td></tr>';
 }
 
+/* ================= BUSCADOR ÚNICO DE ARTÍCULOS (13/11/2026, maqueta v2 aprobada por Rossy) =================
+   - Un solo buscador encima de las líneas: código o palabras sueltas, en cualquier orden, sin acentos y con abreviaturas de LN.
+   - Primero «⭐ Ya lo compra este cliente» (comprasLN/{partner}: veces y última vez, sin precio ni tienda),
+     después «📦 Resto del catálogo» (catalogoApp, guardado en el móvil; se descarga solo si cambia la versión).
+   - Solo añade el botón +. La línea entra con artículo y descripción fijos y SIN cantidad (la última cantidad es solo referencia).
+   - Con el buscador vacío, al pulsarlo: «Lo que más compra este cliente». Se cierra al pulsar fuera y se vacía al elegir.
+   Solo en la versión de PRUEBA (construir_prueba.py). */
+let comprasCliente=[], COMPRAS={}, catalogoApp=null, CAT_IDX={}, estadoCatalogo='sin cargar';
+const UDS_ART={un:'unidades',pce:'piezas',pz:'piezas',cj:'cajas',rl:'rollos',bol:'bolsas',pk:'paquetes',pq:'paquetes',sac:'sacos',sc:'sacos',ml:'metros',m:'metros',m2:'m²',m3:'m³',kg:'kg',l:'litros',lt:'litros',pal:'palés',plt:'palés',tn:'toneladas',t:'toneladas'};
+const SING_ART={unidades:'unidad',piezas:'pieza',cajas:'caja',rollos:'rollo',bolsas:'bolsa',paquetes:'paquete',sacos:'saco',metros:'metro',litros:'litro','palés':'palé',toneladas:'tonelada'};
+const udTxtArt=u=>UDS_ART[(u||'').toLowerCase()]||u||'unidades';
+const cantArt=(q,u)=>{ const t=udTxtArt(u); return Number(q).toLocaleString('es-ES',{maximumFractionDigits:2})+' '+(Number(q)===1&&SING_ART[t]?SING_ART[t]:t); };
+const fecArt=s=>String(s||'').slice(0,10).split('-').reverse().join('/');
+const normArt=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const toksArt=s=>normArt(s).split(/[^a-z0-9ñ,]+/).filter(Boolean);
+// una palabra encaja si una palabra del artículo empieza por ella, o si la del artículo es su abreviatura (MORT = mortero); nunca con números
+const encajaArt=(p,t)=>t.some(w=>w.startsWith(p)||(w.length>=3&&/^[a-zñ]+$/.test(w)&&p.startsWith(w)));
+
+(function estilosBuscador(){
+  const st=document.createElement('style');
+  st.textContent=`
+.busc-art{position:relative;margin-bottom:6px}.busc-art input{padding-left:38px}.busc-art .lupa{position:absolute;left:12px;top:12px;font-size:16px}
+.res-art{border:1px solid var(--bm-blue-light);border-radius:10px;margin:6px 0;max-height:55vh;overflow-y:auto;background:#fff;box-shadow:0 4px 14px rgba(26,58,107,.10)}
+.res-art:empty{display:none}
+.res-art .grupo{position:sticky;top:0;background:var(--bm-blue-light);color:var(--bm-blue);font-size:12px;font-weight:800;padding:6px 12px;z-index:1;display:flex;justify-content:space-between}
+.res-art .grupo.cat{background:#eef1f6;color:#646568}
+.res-art .it{padding:9px 12px;border-bottom:1px solid #eef1f6;display:flex;gap:10px;align-items:center}
+.res-art .it .t{flex:1;min-width:0}.res-art .it .d{font-weight:700;font-size:14px;line-height:1.3}
+.res-art .it .s{font-size:12.5px;color:#646568;margin-top:3px;line-height:1.45}.res-art .it .s b{color:#1a1a2e}
+.res-art .it.no .d{color:#646568}
+.res-art .veces{display:inline-block;background:var(--bm-blue-light);color:var(--bm-blue);font-weight:800;border-radius:9px;padding:0 7px;font-size:12px}
+.res-art .nodisp{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:9px;background:#fff4e0;color:#9a5b00;margin-top:4px}
+.res-art .mas{flex:0 0 auto;min-width:44px;min-height:40px;border:0;border-radius:20px;background:var(--bm-blue);color:#fff;font-weight:800;font-size:18px;cursor:pointer}
+.res-art .mas.ya{background:var(--bm-green);font-size:14px}
+.res-art .vacio{padding:12px;text-align:center;color:#646568;font-size:13px}
+.articulo-line input.fijo{background:#f4f6fa;border-color:#d5dcea;color:#1a1a2e}
+.articulo-line input.pide{border-color:#9a5b00;background:#fff4e0}
+.articulo-line .hist{font-size:12px;color:var(--bm-blue);margin-top:6px;background:#fff;border-radius:6px;padding:4px 8px;border:1px solid var(--bm-blue-light)}`;
+  document.head.appendChild(st);
+})();
+
+/* ---------- datos: catálogo (una vez al día, por versión) y compras del cliente ---------- */
+async function cargarCatalogoApp(){
+  if(catalogoApp) return;
+  estadoCatalogo='cargando';
+  try{
+    const meta=await getDoc(doc(db,'catalogoApp','_meta'));
+    if(!meta.exists()) throw new Error('sin catálogo');
+    const m=meta.data();
+    let guardado=null;
+    try{ const v=localStorage.getItem('catApp_v'); if(v===m.version) guardado=JSON.parse(localStorage.getItem('catApp')||'null'); }catch(e){}
+    if(!guardado){
+      const partes=await Promise.all((m.partes||[]).map(p=>getDoc(doc(db,'catalogoApp',p))));
+      guardado=[]; partes.forEach(p=>{ if(p.exists()) guardado=guardado.concat(p.data().lista||[]); });
+      try{ localStorage.setItem('catApp',JSON.stringify(guardado)); localStorage.setItem('catApp_v',m.version); }catch(e){}
+    }
+    catalogoApp=guardado.map(a=>({c:a[0],d:a[1],k:a[2],ud:a[3],t:toksArt(a[0]+' '+sinCeros(a[0])+' '+a[1]+' '+a[2])}));
+    CAT_IDX={}; catalogoApp.forEach(a=>CAT_IDX[a.c]=a);
+    estadoCatalogo='ok';
+  }catch(e){ console.error('catálogo', e); estadoCatalogo='error'; }
+  if(document.activeElement && document.activeElement.id==='buscaArt') buscarArt();
+}
+async function cargarComprasCliente(partner){
+  comprasCliente=[]; COMPRAS={};
+  try{
+    const r=await getDoc(doc(db,'comprasLN',partner));
+    (r.exists()?(r.data().lista||[]):[]).forEach(x=>{ const a={c:x[0],n:x[1],uf:x[2],uq:x[3],ud:x[4]}; comprasCliente.push(a); COMPRAS[a.c]=a; });
+  }catch(e){ console.error('compras del cliente', e); }
+}
+function datosArt(a){   // completa la compra con la descripción del catálogo (si no está, ya no se puede pedir en la app)
+  const c=CAT_IDX[a.c];
+  return Object.assign({}, a, {d:c?c.d:(a.d||'Artículo '+sinCeros(a.c)), act:!!c, t:c?c.t:toksArt(a.c+' '+sinCeros(a.c)), ud:a.ud||(c&&c.ud)});
+}
+
+/* ---------- resultados ---------- */
+function enPedidoArt(c){ return [...document.querySelectorAll('#articulos-container input[id^="art_"]')].some(i=>i.value===c||i.value===sinCeros(c)); }
+function botonMasArt(c){ const ya=enPedidoArt(c); return '<button type="button" class="mas'+(ya?' ya':'')+'" title="Añadir" onclick="anadirArt(\''+c+'\')">'+(ya?'✓':'+')+'</button>'; }
+function filaCompraArt(a){
+  return '<div class="it'+(a.act?'':' no')+'"><div class="t"><div class="d">'+esc(a.d)+'</div>'+
+    '<div class="s">'+esc(sinCeros(a.c))+' · <span class="veces">'+a.n+(a.n===1?' vez':' veces')+'</span> · última vez <b>'+fecArt(a.uf)+'</b>: '+esc(cantArt(a.uq,a.ud))+'</div>'+
+    (a.act?'':'<div class="nodisp">No disponible en la app (descatalogado o bloqueado para venta)</div>')+'</div>'+(a.act?botonMasArt(a.c):'')+'</div>';
+}
+function filaCatArt(a){
+  return '<div class="it"><div class="t"><div class="d">'+esc(a.d)+'</div><div class="s">'+esc(sinCeros(a.c))+' · '+esc(udTxtArt(a.ud))+(a.k?' · '+esc(a.k):'')+'</div></div>'+botonMasArt(a.c)+'</div>';
+}
+window.buscarArt=function buscarArt(){
+  const r=document.getElementById('resArt'); if(!r) return;
+  if(!clienteSeleccionado){ r.innerHTML='<div class="vacio">Elige primero el cliente.</div>'; return; }
+  const pal=toksArt(document.getElementById('buscaArt').value);
+  const compras=comprasCliente.map(datosArt);
+  const aviso=estadoCatalogo==='cargando'?'<div class="vacio">Cargando el catálogo…</div>':estadoCatalogo==='error'?'<div class="vacio">No se pudo cargar el catálogo. Revisa la conexión y vuelve a entrar.</div>':'';
+  if(!pal.length){
+    if(!compras.length){ r.innerHTML='<div class="vacio">Cliente sin compras en 12 meses: escribe para buscar en el catálogo.</div>'+aviso; return; }
+    r.innerHTML='<div class="grupo"><span>⭐ Lo que más compra este cliente</span><span>'+compras.length+' artículos</span></div>'+
+      compras.slice(0,10).map(filaCompraArt).join('')+'<div class="vacio">Escribe para buscar entre todo lo que compra y en el catálogo.</div>'+aviso;
+    return;
+  }
+  const comp=compras.filter(a=>pal.every(p=>encajaArt(p,a.t))).sort((x,y)=>(y.act-x.act));
+  const yaC=new Set(comp.map(a=>a.c));
+  const cat=(catalogoApp||[]).filter(a=>!yaC.has(a.c) && pal.every(p=>encajaArt(p,a.t)));
+  r.innerHTML='<div class="grupo"><span>⭐ Ya lo compra este cliente</span><span>'+comp.length+'</span></div>'+
+    (comp.length?comp.slice(0,20).map(filaCompraArt).join(''):'<div class="vacio">No ha comprado nada así en 12 meses.</div>')+
+    '<div class="grupo cat"><span>📦 Resto del catálogo</span><span>'+cat.length.toLocaleString('es-ES')+'</span></div>'+
+    (aviso||(cat.length?cat.slice(0,30).map(filaCatArt).join('')+(cat.length>30?'<div class="vacio">Hay '+(cat.length-30).toLocaleString('es-ES')+' más: añade otra palabra (marca, color, kg…).</div>':''):'<div class="vacio">Sin resultados en el catálogo.</div>'));
+};
+window.limpiarBuscadorArt=function(){ const q=document.getElementById('buscaArt'); if(q) q.value=''; const r=document.getElementById('resArt'); if(r) r.innerHTML=''; };
+
+/* ---------- líneas ---------- */
+const addLineClasico=window.addLine;   // la línea editable de siempre (la usa la grúa automática)
+window.addLine=function addLine(cod,desc,hist,ud){
+  if(!cod) return addLineClasico();
+  lineCount++; const id=lineCount;
+  const c=document.getElementById('articulos-container');
+  const div=document.createElement('div'); div.className='articulo-line'; div.id='line-'+id;
+  div.innerHTML='<div class="num-linea"></div><div class="articulo-line-top">'+
+    '<div class="field"><label>Artículo</label><input type="text" id="art_'+id+'" value="'+esc(sinCeros(cod))+'" readonly class="fijo"></div>'+
+    '<div class="field"><label>Unidades ('+esc(udTxtArt(ud))+')</label><input type="number" id="uni_'+id+'" placeholder="0" min="1" step="1" inputmode="numeric" class="pide" oninput="this.classList.toggle(\'pide\',!(+this.value>0));programarAlmacen()"></div>'+
+    '<div class="field"><label>Dto.%</label><input type="number" id="dto_'+id+'" placeholder="0" min="0" max="100" step="0.1" inputmode="decimal"></div>'+
+    '<button type="button" class="del-btn" onclick="removeLine('+id+')" title="Eliminar">×</button></div>'+
+    '<div class="field" style="margin-bottom:0"><label>Descripción</label><input type="text" id="desc_'+id+'" value="'+esc(desc||'')+'" readonly class="fijo"></div>'+
+    (hist?'<div class="hist">⭐ '+esc(hist)+'</div>':'');
+  // delante de la grúa automática, que siempre va la última
+  const grua=c.querySelector('.articulo-line[data-auto="grua"]');
+  if(grua) c.insertBefore(div,grua); else c.appendChild(div);
+  c.scrollTop=c.scrollHeight; renumerarLineas();
+  return id;
+};
+window.anadirArt=function anadirArt(cod){
+  if(enPedidoArt(cod)){   // ya está: se lleva al comercial a sus unidades, sin duplicar la línea
+    const ya=[...document.querySelectorAll('#articulos-container input[id^="art_"]')].find(i=>i.value===cod||i.value===sinCeros(cod));
+    limpiarBuscadorArt(); const u=ya&&ya.closest('.articulo-line').querySelector('input[id^="uni_"]'); if(u){ u.scrollIntoView({block:'nearest'}); u.focus(); }
+    return;
+  }
+  const cat=CAT_IDX[cod], comp=COMPRAS[cod];
+  if(!cat) return;
+  const id=addLine(cod, cat.d, comp?'Ya lo compra: '+comp.n+(comp.n===1?' vez':' veces')+' · última vez '+fecArt(comp.uf)+': '+cantArt(comp.uq,comp.ud||cat.ud)+' (solo referencia)':'', (comp&&comp.ud)||cat.ud);
+  limpiarBuscadorArt();
+  const u=document.getElementById('uni_'+id); if(u) u.focus({preventScroll:true});
+  programarAlmacen();
+};
+document.addEventListener('pointerdown',e=>{ if(!e.target.closest('.busc-art') && !e.target.closest('#resArt')){ const r=document.getElementById('resArt'); if(r) r.innerHTML=''; } });
+
 (async function init(){
   setFechaAuto();
   setMinDate();
-  addLine();
+  renumerarLineas();
   document.getElementById('cliente').addEventListener('input', function(){ buscarClienteDebounced(this.value); });
   document.getElementById('partner').addEventListener('input', function(){ buscarPartnerDebounced(this.value); });
   document.getElementById('direccion').addEventListener('input', function(){ if(obraElegida){ obraElegida=null; } coordsObra=null; mostrarObraHint(); buscarDireccionDebounced(this.value); });
