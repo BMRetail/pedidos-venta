@@ -1617,7 +1617,7 @@ let borradorPausado=false, tBorr=null;
 function guardarBorrador(){
   if(borradorPausado || !perfilActual) return;
   const lin=lineasActuales();
-  if(!clienteSeleccionado && !lin.length){ return; }
+  if(!lin.length) return;   // sin artículos no hay pedido a medias (no se borra: puede haber un aviso pendiente)
   const b={t:Date.now(), partner:clienteSeleccionado?clienteSeleccionado.partner:'', razon:clienteSeleccionado?clienteSeleccionado.razonSocial:'',
            visita:ENTRADA.visita||'', lineas:lin, obs:(document.getElementById('datos_importantes')||{}).value||''};
   try{ localStorage.setItem(claveBorrador(), JSON.stringify(b)); }catch(e){}
@@ -1661,7 +1661,7 @@ async function aplicarEntradaRutero(){
     if(sel && !sel.disabled && Array.from(sel.options).some(o=>o.value===ENTRADA.comercial)){ sel.value=ENTRADA.comercial; sel.dispatchEvent(new Event('change',{bubbles:true})); }
   }
   const b=leerBorrador();
-  if(b && (b.lineas.length || b.partner) && Date.now()-b.t < 7*86400000){
+  if(b && (b.lineas||[]).length && Date.now()-b.t < 7*86400000){
     // si llega del Rutero con el mismo cliente del borrador, se recupera directamente
     if(ENTRADA.cliente && b.partner===ENTRADA.cliente){ await recuperarBorrador(b); return; }
     avisoBorrador(b);

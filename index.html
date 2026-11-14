@@ -803,8 +803,10 @@ window.enviarPedido=async function enviarPedido(){
 
   btn.disabled=true; btn.textContent='Guardando...';
   try{
-    await addDoc(collection(db,'pedidos'), pedido);
+    const refPed=await addDoc(collection(db,'pedidos'), pedido);
+    await trasGuardarPedido(refPed.id);   // borra el borrador y enlaza la visita (solo con el pedido guardado)
     limpiarFormulario(true);
+    botonVolverTrasGuardar();
     if(pedido.tiendaEmailDestino){
       showStatus('Pedido guardado.', true);
       mostrarBotonCorreo(urlCorreoPedido(pedido));
@@ -832,7 +834,7 @@ window.limpiarFormulario=function limpiarFormulario(skipConfirm){
   lineCount=0; renumerarLineas(); limpiarBuscadorArt(); comprasCliente=[]; COMPRAS={};
   fijarComercialDelUsuario();  // el comercial del usuario se mantiene tras limpiar
   document.getElementById('statusBanner').classList.remove('show');
-  clienteSeleccionado=null;
+  clienteSeleccionado=null; pintarFijoCli(); borrarBorrador();
   setFechaAuto();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -912,6 +914,7 @@ async function alEntrar(user){
   }
   fijarComercialDelUsuario();
   cargarCatalogoApp();
+  aplicarEntradaRutero();
   const puedeCargar = p.rol==='carga' || p.rol==='admin';
   document.getElementById('btnBandeja').style.display = puedeCargar ? '' : 'none';
   if(p.rol==='carga') mostrarBandeja(true);
@@ -1548,6 +1551,142 @@ window.anadirArt=function anadirArt(cod){
   programarAlmacen();
 };
 document.addEventListener('pointerdown',e=>{ if(!e.target.closest('.busc-art') && !e.target.closest('#resArt')){ const r=document.getElementById('resArt'); if(r) r.innerHTML=''; } });
+
+/* ================= ENTRADA DESDE EL RUTERO + BORRADOR AUTOMÁTICO (14/11/2026, maqueta v3 aprobada) =================
+   ?cliente=PARTNER  -> el pedido se abre con ese cliente ya elegido
+   ?visita=ID        -> al guardar de verdad, la visita queda enlazada (pedidoId) y el Rutero la marca «🛒 Pedido realizado»
+   ?desde=rutero|rutero-prueba -> botón «← Rutero» arriba y al guardar
+   Borrador: cliente, líneas y observaciones se guardan en el móvil mientras se escribe; si se sale sin guardar,
+   al volver sale «Tienes un pedido a medias… ¿Continuar o descartar?». Se borra al guardar el pedido. */
+const PARAMS_RUTERO=new URLSearchParams(location.search);
+const ENTRADA={cliente:(PARAMS_RUTERO.get('cliente')||'').replace(/[^0-9A-Za-z]/g,'').slice(0,12),
+               visita:(PARAMS_RUTERO.get('visita')||'').replace(/[^0-9A-Za-z_-]/g,'').slice(0,40),
+               desde:PARAMS_RUTERO.get('desde')||'',
+               comercial:(PARAMS_RUTERO.get('comercial')||'').replace(/[^0-9A-Za-z]/g,'').slice(0,20)};
+// solo se vuelve a las dos direcciones del Rutero (nunca a una dirección que llegue por el enlace)
+const URL_RUTERO=ENTRADA.desde==='rutero-prueba'?'https://bmretail.github.io/rutero-comercial/prueba.html':'https://bmretail.github.io/rutero-comercial/';
+const DESDE_RUTERO=ENTRADA.desde==='rutero'||ENTRADA.desde==='rutero-prueba';
+
+(function estilosRutero(){
+  const st=document.createElement('style');
+  st.textContent=`
+.btn-rutero{background:#fff;color:var(--bm-blue);border:0;border-radius:16px;padding:7px 12px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;margin-right:8px}
+.fijo-cli{position:sticky;top:0;z-index:90;background:var(--bm-blue-pale);border-bottom:2px solid var(--bm-blue-mid);padding:7px 16px;font-size:13px;display:none}
+.fijo-cli b{color:var(--bm-blue)}
+.aviso-borr{margin:10px 16px;border-radius:10px;padding:10px 12px;background:var(--bm-blue-pale);border:1px solid var(--bm-blue-light);color:var(--bm-blue);font-size:14px;line-height:1.45}
+.aviso-borr .fila{display:flex;gap:8px;margin-top:8px}
+.aviso-borr button{min-height:40px;padding:0 14px;border-radius:20px;border:1.5px solid var(--bm-blue-mid);background:#fff;color:var(--bm-blue);font-weight:800;cursor:pointer}
+.aviso-borr button.prim{background:var(--bm-blue);color:#fff}
+.volver-rutero{display:block;width:calc(100% - 32px);margin:10px 16px;min-height:46px;border-radius:23px;border:0;background:var(--bm-blue);color:#fff;font-weight:800;font-size:15px;cursor:pointer}`;
+  document.head.appendChild(st);
+})();
+function volverAlRutero(){ location.href=URL_RUTERO; }
+(function botonRutero(){
+  if(!DESDE_RUTERO) return;
+  const cab=document.querySelector('.form-header'); if(!cab) return;
+  const b=document.createElement('button'); b.type='button'; b.className='btn-rutero'; b.textContent='← Rutero'; b.onclick=volverAlRutero;
+  cab.insertBefore(b, cab.firstChild);
+})();
+// cliente siempre visible arriba (para no equivocarse de cliente)
+(function barraCliente(){
+  const d=document.createElement('div'); d.className='fijo-cli'; d.id='fijoCliPed';
+  const cab=document.querySelector('.form-header'); if(cab && cab.parentNode) cab.parentNode.insertBefore(d, cab.nextSibling);
+})();
+function pintarFijoCli(){
+  const d=document.getElementById('fijoCliPed'); if(!d) return;
+  if(clienteSeleccionado){ d.innerHTML='Cliente: <b>'+esc(clienteSeleccionado.razonSocial||'')+'</b> ('+esc(sinCeros(clienteSeleccionado.partner))+')'; d.style.display='block'; }
+  else d.style.display='none';
+}
+onClienteSeleccionado=(function(orig){ return function(it){ orig(it); pintarFijoCli(); guardarBorradorPronto(); }; })(onClienteSeleccionado);
+
+/* ---------- borrador en el móvil ---------- */
+function claveBorrador(){ return 'pedidoBorrador_'+((perfilActual&&perfilActual.email)||''); }
+function leerBorrador(){ try{ return JSON.parse(localStorage.getItem(claveBorrador())||'null'); }catch(e){ return null; } }
+function borrarBorrador(){ try{ localStorage.removeItem(claveBorrador()); }catch(e){} }
+function lineasActuales(){
+  return [...document.querySelectorAll('#articulos-container .articulo-line')].filter(l=>l.dataset.auto!=='grua').map(l=>({
+    c:(l.querySelector('[id^=art_]')||{}).value||'', d:(l.querySelector('[id^=desc_]')||{}).value||'',
+    u:(l.querySelector('[id^=uni_]')||{}).value||'', dto:(l.querySelector('[id^=dto_]')||{}).value||'',
+    ud:((l.querySelector('[id^=uni_]')||{}).closest?.('.field')?.querySelector('label')?.textContent.match(/\(([^)]+)\)/)||[])[1]||''
+  })).filter(x=>x.c);
+}
+let borradorPausado=false, tBorr=null;
+function guardarBorrador(){
+  if(borradorPausado || !perfilActual) return;
+  const lin=lineasActuales();
+  if(!lin.length) return;   // sin artículos no hay pedido a medias (no se borra: puede haber un aviso pendiente)
+  const b={t:Date.now(), partner:clienteSeleccionado?clienteSeleccionado.partner:'', razon:clienteSeleccionado?clienteSeleccionado.razonSocial:'',
+           visita:ENTRADA.visita||'', lineas:lin, obs:(document.getElementById('datos_importantes')||{}).value||''};
+  try{ localStorage.setItem(claveBorrador(), JSON.stringify(b)); }catch(e){}
+}
+function guardarBorradorPronto(){ clearTimeout(tBorr); tBorr=setTimeout(guardarBorrador, 600); }
+document.addEventListener('input', e=>{ if(e.target.closest && e.target.closest('#pedidoForm')) guardarBorradorPronto(); });
+new MutationObserver(guardarBorradorPronto).observe(document.getElementById('articulos-container'), {childList:true});
+
+function haceCuanto(t){ const m=Math.round((Date.now()-t)/60000); return m<1?'hace un momento':m<60?'hace '+m+' min':m<1440?'hace '+Math.round(m/60)+' h':'hace '+Math.round(m/1440)+' días'; }
+function avisoBorrador(b){
+  const prev=document.getElementById('avisoBorr'); if(prev) prev.remove();
+  const d=document.createElement('div'); d.className='aviso-borr'; d.id='avisoBorr';
+  d.innerHTML='📝 Tienes un <b>pedido a medias</b>'+(b.razon?' de <b>'+esc(b.razon)+'</b>':'')+' ('+b.lineas.length+(b.lineas.length===1?' línea':' líneas')+', '+haceCuanto(b.t)+').'+
+    '<div class="fila"><button type="button" class="prim" id="borrSi">Continuar</button><button type="button" id="borrNo">Descartar</button></div>';
+  const ref=document.getElementById('statusBanner'); ref.parentNode.insertBefore(d, ref.nextSibling);
+  document.getElementById('borrNo').onclick=()=>{ borrarBorrador(); d.remove(); };
+  document.getElementById('borrSi').onclick=async()=>{ d.remove(); await recuperarBorrador(b); };
+}
+async function recuperarBorrador(b){
+  borradorPausado=true;
+  try{
+    if(b.partner) onClienteSeleccionado({partner:b.partner, razonSocial:b.razon});
+    if(b.visita && !ENTRADA.visita) ENTRADA.visita=b.visita;
+    if(b.obs){ const o=document.getElementById('datos_importantes'); if(o) o.value=b.obs; }
+    (b.lineas||[]).forEach(l=>{
+      if(enPedidoArt(l.c)) return;
+      const id=addLine(l.c, l.d, '', l.ud);
+      const u=document.getElementById('uni_'+id); if(u){ u.value=l.u; u.classList.toggle('pide',!(+l.u>0)); }
+      const dt=document.getElementById('dto_'+id); if(dt) dt.value=l.dto;
+    });
+    programarAlmacen();
+  }finally{ borradorPausado=false; guardarBorrador(); }
+}
+
+/* ---------- al entrar: borrador pendiente y cliente que llega del Rutero ---------- */
+async function aplicarEntradaRutero(){
+  // supervisión/administración que pasa un pedido en nombre de un comercial (desde «Herramientas del comercial»).
+  // Un comercial no puede cambiarlo: su desplegable está bloqueado a su nombre.
+  if(ENTRADA.comercial){
+    const sel=document.getElementById('comercial');
+    if(sel && !sel.disabled && Array.from(sel.options).some(o=>o.value===ENTRADA.comercial)){ sel.value=ENTRADA.comercial; sel.dispatchEvent(new Event('change',{bubbles:true})); }
+  }
+  const b=leerBorrador();
+  if(b && (b.lineas||[]).length && Date.now()-b.t < 7*86400000){
+    // si llega del Rutero con el mismo cliente del borrador, se recupera directamente
+    if(ENTRADA.cliente && b.partner===ENTRADA.cliente){ await recuperarBorrador(b); return; }
+    avisoBorrador(b);
+  }
+  if(ENTRADA.cliente && !clienteSeleccionado){
+    try{
+      const s=await getDocRapido(doc(db,'clientes',ENTRADA.cliente));
+      if(s.exists()){ const c=s.data(); onClienteSeleccionado({partner:ENTRADA.cliente, razonSocial:c.razonSocial||'', contacto:c.contactoAutorizadoHabitual}); }
+    }catch(e){ console.error('cliente del Rutero', e); }
+  }
+}
+
+/* ---------- después de guardar de verdad ---------- */
+async function trasGuardarPedido(idPedido){
+  borrarBorrador();
+  const avisoB=document.getElementById('avisoBorr'); if(avisoB) avisoB.remove();
+  if(ENTRADA.visita){
+    // la visita queda enlazada solo cuando el pedido está guardado en la base de datos
+    try{ await updateDoc(doc(db,'visitas',ENTRADA.visita), {pedidoId:idPedido, pedidoEn:serverTimestamp()}); }
+    catch(e){ console.error('enlazar visita', e); }
+  }
+}
+function botonVolverTrasGuardar(){
+  if(!DESDE_RUTERO) return;
+  const prev=document.getElementById('volverTras'); if(prev) prev.remove();
+  const b=document.createElement('button'); b.type='button'; b.className='volver-rutero'; b.id='volverTras'; b.textContent='← Volver al Rutero'; b.onclick=volverAlRutero;
+  const ref=document.getElementById('statusBanner'); ref.parentNode.insertBefore(b, ref.nextSibling);
+}
 
 (async function init(){
   setFechaAuto();
