@@ -2208,6 +2208,7 @@ details.alt-f[open] summary{margin-bottom:6px}
 body.buscando-f .form-header,body.buscando-f .fijo-cli{position:static!important}
 body.buscando-f .busc-fijo{top:0!important}
 body.buscando-f .paso-f.on{padding-bottom:75vh}
+body.escribiendo-f .paso-f.on{padding-bottom:60vh}   /* hueco para poder subir el campo por encima del teclado */
 .fecha-elegida-f{font-size:13.5px;color:#1a1a2e;margin:2px 0 4px}
 .field:has(#fecha_transporte.error) .fechas-f button{border-color:var(--bm-red)}
 .aviso-cant-f{font-size:12px;font-weight:700;color:#9a5b00;background:#fff4e0;border-radius:6px;padding:5px 8px;margin-top:6px}
@@ -2361,6 +2362,21 @@ if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
     q.addEventListener('input', ajustarListaF);
     if(window.visualViewport) visualViewport.addEventListener('resize', ()=>setTimeout(ajustarListaF, 50));
   }
+}
+
+/* ---------- 22/11 (Rossy, móvil): al saltar a un campo de texto se abre el teclado y tapaba el campo y lo que sigue ----------
+   Cuando el teclado termina de abrirse (cambia el alto visible), el campo activo se coloca arriba, justo debajo de las barras fijas. */
+if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
+  const verCampoEnfocadoF=()=>{
+    const a=document.activeElement;
+    if(!a || !a.closest || !a.closest('.paso-f') || !a.matches('input,textarea') || /^(radio|checkbox)$/.test(a.type) || a.id==='buscaArt') return;
+    const fld=a.closest('.field')||a, r=fld.getBoundingClientRect();
+    const cab=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cab2-f'))||0;
+    const alto=window.visualViewport?visualViewport.height:window.innerHeight;
+    if(r.top<cab+4 || r.bottom>alto*0.6) window.scrollBy({top:r.top-cab-10, behavior:'smooth'});
+  };
+  if(window.visualViewport) visualViewport.addEventListener('resize', ()=>setTimeout(verCampoEnfocadoF, 60));
+  document.addEventListener('focusin', ()=>{ setTimeout(verCampoEnfocadoF, 350); setTimeout(verCampoEnfocadoF, 700); });
 }
 
 /* ---------- aviso ámbar de cantidad en el paso 2 ---------- */
