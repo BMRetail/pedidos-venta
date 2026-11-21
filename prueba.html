@@ -375,7 +375,7 @@ function formatTel(el){let v=el.value.replace(/\D/g,'');if(v.length>9)v=v.slice(
 function validateTel(val){const digits=val.replace(/\D/g,'');return digits.length===9;}
 function f(id){const el=document.getElementById(id);return el?el.value.trim():'';}
 function getRadio(name){const els=document.querySelectorAll('input[name="'+name+'"]:checked');return els.length?els[0].value:'';}
-function setMinDate(){const ft=document.getElementById('fecha_transporte');const y=new Date();y.setDate(y.getDate()-1);ft.min=y.toISOString().split('T')[0];}
+function setMinDate(){const ft=document.getElementById('fecha_transporte');const y=new Date();y.setDate(y.getDate()-1);ft.min=isoLocalF(new Date());}
 function showStatus(msg,ok){const b=document.getElementById('statusBanner');b.textContent=msg;b.className='status-banner show '+(ok?'ok':'err');window.scrollTo({top:0,behavior:'smooth'});}
 window.formatTel=formatTel;
 
@@ -669,7 +669,7 @@ function validate(){
   const tel2=document.getElementById('tlfo2');
   if(tel2.value && !validateTel(tel2.value)){ tel2.classList.add('error'); showStatus('El teléfono alternativo debe tener 9 dígitos.', false); return false; }
   const ft=document.getElementById('fecha_transporte');
-  if(ft.value){ const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1); const selected=new Date(ft.value+'T00:00:00'); if(selected<yesterday){ ft.classList.add('error'); showStatus('La fecha de transporte no puede ser anterior a ayer.', false); return false; } }
+  if(ft.value){ const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1); const malF=fechaTransporteMalF(ft.value); if(malF){ ft.classList.add('error'); showStatus(malF, false); return false; } }
   const lineas=getLineas();
   if(lineas.length===0){ showStatus('Añade al menos una línea de artículo.', false); return false; }
   const sinDescManual=[...document.querySelectorAll('.articulo-line[data-manual="1"]')].filter(d=>{ const e=d.querySelector('[id^=desc_]'); const mal=!e||e.value.trim().length<3; if(e) e.classList.toggle('error',mal); return mal; });
@@ -751,9 +751,8 @@ function mostrarBotonCorreo(url){
   const b=document.getElementById('statusBanner');
   const link=document.createElement('a');
   link.href=url;
-  link.textContent='📧 Enviar por mail';
-  link.style.cssText='display:inline-block;margin-top:10px;padding:8px 14px;background:var(--bm-green-dark);color:#fff;border-radius:6px;font-weight:700;text-decoration:none';
-  b.appendChild(document.createElement('br'));
+  link.textContent='📧 Enviar a transporte';
+  link.className='btn-correo-f';
   b.appendChild(link);
 }
 
@@ -809,12 +808,19 @@ window.enviarPedido=async function enviarPedido(){
 
   btn.disabled=true; btn.textContent='Guardando...';
   try{
-    const refPed=await addDoc(collection(db,'pedidos'), pedido);
-    await trasGuardarPedido(refPed.id);   // borra el borrador y enlaza la visita (solo con el pedido guardado)
+    const refPed=doc(collection(db,'pedidos'));
+    const escritura=setDoc(refPed, pedido);
+    const conRed=await Promise.race([escritura.then(()=>true), new Promise(r=>setTimeout(()=>r(false), 8000))]);
+    if(conRed) await trasGuardarPedido(refPed.id);   // borra el borrador y enlaza la visita (solo con el pedido guardado)
+    else {
+      trasGuardarPedido(refPed.id).catch(e=>console.error('tras guardar sin red', e));   // borra el borrador ya; la visita se enlaza al volver la señal
+      escritura.then(()=>showStatus('✅ El pedido que se guardó sin cobertura ya ha llegado a transporte.', true))
+               .catch(e=>showStatus('❌ El pedido guardado sin cobertura no se ha podido enviar ('+e.message+'). Avisa a transporte.', false));
+    }
     limpiarFormulario(true);
     botonVolverTrasGuardar();
     if(pedido.tiendaEmailDestino){
-      showStatus('Pedido guardado.', true);
+      showStatus(conRed?'✅ Pedido guardado. Ahora envía el correo a transporte:':'📶 Sin cobertura: el pedido queda guardado en el móvil y se enviará solo al volver la señal. NO lo vuelvas a pasar. Envía también el correo a transporte:', true);
       mostrarBotonCorreo(urlCorreoPedido(pedido));
     } else {
       showStatus('Pedido guardado, pero esta tienda todavía no tiene email de transporte configurado. Avisa a transporte manualmente.', false);
@@ -1959,7 +1965,10 @@ function bloqueCampoF(id){
 })();
 
 /* ---------- comprobación por paso ---------- */
-function errF(t){ showStatus(t, false); return false; }
+function errF(t){ showStatus(t, false);
+  // 21/11: la pantalla va al primer campo que falta (antes subía arriba y había que buscarlo)
+  setTimeout(()=>{ const e=document.querySelector('#pasoF'+pasoF+' .error, #pasoF'+pasoF+' .falta-f'); const dst=e && (e.offsetParent!==null ? e : e.closest('.field')); if(dst && dst.offsetParent!==null) dst.scrollIntoView({block:'center', behavior:'smooth'}); }, 60);
+  return false; }
 function okF(){ const b=document.getElementById('statusBanner'); if(b && / err/.test(b.className)) b.className='status-banner'; return true; }
 function faltanF(ids){
   const m=[];
@@ -1992,14 +2001,16 @@ function validarPasoF(k){
   }
   if(k===3){
     m=faltanF(['fecha_transporte','franja','contacto_obra','tlfo1']);
-    [['grua','Grúa'],['calle_estrecha','Calle estrecha'],['calle_restringida','Calle restringida'],['adelantar','Se puede adelantar']].forEach(r=>{ if(!getRadio(r[0])) m.push(r[1]); });
+    [['grua','Grúa'],['calle_estrecha','Calle estrecha'],['calle_restringida','Calle restringida'],['adelantar','Se puede adelantar']].forEach(r=>{
+      const fl=document.querySelector('input[name="'+r[0]+'"]')?.closest('.field'); if(fl) fl.classList.toggle('falta-f', !getRadio(r[0]));
+      if(!getRadio(r[0])) m.push(r[1]); });
     if(getRadio('calle_restringida')==='Sí' && (!f('restr_desde') || !f('restr_hasta'))) m.push('Horario de la calle restringida');
     if(m.length) return errF('Faltan: '+m.join(', '));
     const t1=document.getElementById('tlfo1'), t2=document.getElementById('tlfo2');
     if(!validateTel(t1.value)){ t1.classList.add('error'); return errF('El teléfono de contacto debe tener 9 dígitos.'); }
     if(t2.value && !validateTel(t2.value)){ t2.classList.add('error'); return errF('El teléfono alternativo debe tener 9 dígitos.'); }
-    const ft=document.getElementById('fecha_transporte'), ayer=new Date(); ayer.setDate(ayer.getDate()-1);
-    if(new Date(ft.value+'T00:00:00')<ayer){ ft.classList.add('error'); return errF('La fecha de transporte no puede ser anterior a ayer.'); }
+    const ft=document.getElementById('fecha_transporte'), malF=fechaTransporteMalF(ft.value);
+    if(malF){ ft.classList.add('error'); return errF(malF); }   // 21/11 (Rossy): mínimo hoy y solo de lunes a viernes
     return okF();
   }
   if(k===4){ m=faltanF(['forma_pago']); if(m.length) return errF('Falta: '+m.join(', ')); return okF(); }
@@ -2014,6 +2025,7 @@ function pintarPasoF(){
   at.style.display=pasoF>1?'':'none';
   if(!sg.disabled){ sg.textContent=pasoF<4?'Siguiente: '+PASOS_F[pasoF].t+' →':'✓ Guardar pedido'; sg.classList.toggle('guardar', pasoF===4); }
   if(pasoF===4) pintarResumenPasoF();
+  actualizarCadenasF();
 }
 window.irPasoF=function irPasoF(n, libre){
   n=Math.max(1, Math.min(4, n));
@@ -2034,6 +2046,7 @@ async function guardarPasoF(){
   for(let k=1; k<=4; k++){ if(!validarPasoF(k)){ if(k!==pasoF){ irPasoF(k, true); validarPasoF(k); } return; } }
   if(!validate()) return;   // por si acaso, la comprobación completa de siempre
   const sg=document.getElementById('navSigF'); if(sg.disabled) return;
+  try{ localStorage.setItem(claveTiendaF(), f('tienda')); }catch(e){}   // la próxima vez sale ya esta tienda
   sg.disabled=true; sg.textContent='Guardando…';
   try{ await guardarPedidoSinRevisar(); }
   finally{ sg.disabled=false; pintarPasoF(); }
@@ -2043,7 +2056,7 @@ window.enviarPedido=async function enviarPedido(){ await guardarPasoF(); };
 const limpiarFormularioSinPasos=window.limpiarFormulario;
 window.limpiarFormulario=function limpiarFormulario(skip){
   const r=limpiarFormularioSinPasos(skip);
-  if(skip || !f('cliente')){ pasoF=1; pintarPasoF(); }
+  if(skip || !f('cliente')){ pasoF=1; pintarPasoF(); setTimeout(ponerTiendaRecordadaF, 50); }
   return r;
 };
 
@@ -2107,10 +2120,253 @@ recuperarBorrador=async function(b){
       const u=document.getElementById('uni_'+id); if(u){ u.value=l.u; u.classList.toggle('pide',!(+l.u>0)); }
       const dt=document.getElementById('dto_'+id); if(dt) dt.value=l.dto;
     });
+    if(c.contacto_alt || c.tlfo2){ const a=document.getElementById('altF'); if(a) a.open=true; }
+    actualizarCadenasF();
     programarAlmacen();
     if(b.paso) irPasoF(b.paso, true);
   }finally{ borradorPausado=false; guardarBorrador(); }
 };
+
+/* ===== 21/11/2026 (Rossy, tras la revisión «comercial de calle») · SOLO PRUEBA · va DESPUÉS de pedido_por_pasos.js =====
+   - UNA PREGUNTA TRAS OTRA: en los pasos 1, 3 y 4 la siguiente pregunta aparece al contestar la anterior y la pantalla baja sola.
+     Nada viene marcado de antemano (no se puede «poner todo normal» de un toque).
+     En los campos de texto no se salta mientras se escribe: se pasa con «Intro/Siguiente» del teclado (el teléfono, al tener 9 cifras).
+   - Cantidad a cobrar: solo con cobro en destino (efectivo o datáfono) y Paygold.
+   - Contacto alternativo plegado («+ Añadir contacto alternativo»). «Fecha del pedido» oculta (se pone sola).
+   - Fecha de transporte con botones (próximo día laborable, el siguiente, otro día).
+   - Tienda vendedora: la última que usó el comercial en este móvil.
+   - Unidades con decimales (m³, t, kg, m, m², l): teclado con coma.
+   - Aviso ámbar de cantidad también en el paso 2, al escribir las unidades. */
+function isoLocalF(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// 21/11/2026 (Rossy): la fecha de transporte, como mínimo HOY y solo de LUNES A VIERNES (transporte no reparte en fin de semana)
+// Festivos: nacionales + Comunidad de Madrid (Decreto 75/2025 para 2026 y Decreto 82/2026 para 2027, BOCM); los locales de cada municipio no.
+// Mismos que el objetivo diario del Rutero. La app de pedidos es solo para tiendas de Madrid.
+const FESTIVOS_TRANSPORTE_F=new Set(['2026-01-01','2026-01-06','2026-04-02','2026-04-03','2026-05-01','2026-05-02','2026-08-15','2026-10-12','2026-11-02','2026-12-07','2026-12-08','2026-12-25',
+  '2027-01-01','2027-01-06','2027-03-19','2027-03-25','2027-03-26','2027-05-01','2027-08-16','2027-10-12','2027-11-01','2027-12-06','2027-12-08','2027-12-25']);
+function esLaborableF(iso){ const dw=new Date(iso+'T12:00:00').getDay(); return dw!==0 && dw!==6 && !FESTIVOS_TRANSPORTE_F.has(iso); }
+function fechaTransporteMalF(v){
+  if(!v) return '';
+  if(v<isoLocalF(new Date())) return 'La fecha de transporte no puede ser anterior a hoy.';
+  if(FESTIVOS_TRANSPORTE_F.has(v)) return 'Ese día es festivo y transporte no reparte: elige un día laborable.';
+  if(!esLaborableF(v)) return 'Transporte reparte de lunes a viernes: elige un día laborable.';
+  return '';
+}
+(function estilosCadenasF(){
+  const st=document.createElement('style');
+  st.textContent=`
+.oculto-f{display:none!important}
+.field.falta-f{outline:2px solid var(--bm-red);outline-offset:4px;border-radius:8px}
+.fechas-f{display:flex;gap:6px;margin-bottom:8px}
+.fechas-f button{flex:1;min-width:0;min-height:48px;border:1.5px solid var(--bm-blue-mid);border-radius:10px;background:#fff;color:var(--bm-blue);font-weight:800;font-size:14px;cursor:pointer;line-height:1.2;font-family:inherit;padding:4px}
+.fechas-f button small{display:block;font-weight:600;font-size:11.5px;color:#646568;margin-top:2px}
+.fechas-f button.on{background:var(--bm-blue);border-color:var(--bm-blue);color:#fff}.fechas-f button.on small{color:#dfe7f5}
+details.alt-f{margin-bottom:14px}
+details.alt-f summary{cursor:pointer;color:var(--bm-blue);font-weight:700;font-size:14px;padding:8px 0;list-style:none}
+details.alt-f summary::-webkit-details-marker{display:none}
+details.alt-f[open] summary{margin-bottom:6px}
+.cal-f{border:1.5px solid var(--bm-blue-light);border-radius:12px;padding:8px;margin-bottom:8px;background:#fff}
+.cal-f .cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-f .cab b{font-size:15px;color:var(--bm-blue);text-transform:capitalize}
+.cal-f .cab button{width:44px;height:40px;border:0;border-radius:10px;background:var(--bm-blue-light);color:var(--bm-blue);font-size:22px;font-weight:800;cursor:pointer}
+.cal-f .cab button:disabled{opacity:.3;cursor:default}
+.cal-f .sem,.cal-f .dias{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.cal-f .sem span{font-size:11.5px;font-weight:800;color:#646568;padding:2px 0}
+.cal-f .dias button,.cal-f .dias span{height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:15px}
+.cal-f .dias button{border:1px solid #d5dcea;background:#fff;color:#1a1a2e;font-weight:700;cursor:pointer;font-family:inherit}
+.cal-f .dias span.no{background:#f1f2f4;color:#b4b8bf}
+.cal-f .dias .hoy{box-shadow:inset 0 0 0 2px var(--bm-blue-mid)}
+.cal-f .dias button.on{background:var(--bm-blue);border-color:var(--bm-blue);color:#fff}
+.cal-f .ley{font-size:11.5px;color:#646568;margin-top:6px}
+.fecha-elegida-f{font-size:13.5px;color:#1a1a2e;margin:2px 0 4px}
+.field:has(#fecha_transporte.error) .fechas-f button{border-color:var(--bm-red)}
+.aviso-cant-f{font-size:12px;font-weight:700;color:#9a5b00;background:#fff4e0;border-radius:6px;padding:5px 8px;margin-top:6px}
+.btn-correo-f{display:block;margin-top:10px;padding:14px;background:var(--bm-green-dark);color:#fff!important;border-radius:12px;font-weight:800;font-size:16px;text-decoration:none;text-align:center}`;
+  document.head.appendChild(st);
+})();
+
+(function montarExtrasF(){
+  const fa=bloqueCampoF('fecha_auto'); if(fa) fa.classList.add('oculto-f');
+  // contacto alternativo plegado, en su sitio
+  const ba=bloqueCampoF('contacto_alt'), bt=bloqueCampoF('tlfo2');
+  if(ba && bt){
+    const d=document.createElement('details'); d.className='alt-f'; d.id='altF';
+    d.innerHTML='<summary>+ Añadir contacto alternativo (opcional)</summary>';
+    ba.parentNode.insertBefore(d, ba); d.appendChild(ba); d.appendChild(bt);
+  }
+  // botones de fecha encima del calendario
+  const ft=document.getElementById('fecha_transporte');
+  if(ft){ const c=document.createElement('div'); c.className='fechas-f'; c.id='fechasF'; ft.parentNode.insertBefore(c, ft);
+    // 21/11 (Rossy): calendario propio con los días no válidos en gris (pasados, sábados, domingos y festivos); el del móvil no lo permite
+    const cal=document.createElement('div'); cal.className='cal-f'; cal.id='calF'; cal.style.display='none'; ft.parentNode.insertBefore(cal, ft);
+    const el=document.createElement('div'); el.className='fecha-elegida-f'; el.id='fechaElegidaF'; ft.parentNode.insertBefore(el, ft);
+    ft.style.display='none';
+    ft.addEventListener('change', pintarFechasF); ft.addEventListener('input', pintarFechasF); pintarFechasF(); }
+})();
+
+/* ---------- fecha: próximo laborable, el siguiente, otro día ---------- */
+function laborableF(d, n){ const x=new Date(d); let k=0; while(k<n){ x.setDate(x.getDate()+1); if(esLaborableF(isoLocalF(x))) k++; } return x; }
+function pintarFechasF(){
+  const c=document.getElementById('fechasF'); if(!c) return;
+  const hoy=new Date(), d1=laborableF(hoy,1), d2=laborableF(hoy,2), v=f('fecha_transporte');
+  const DS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const dentro=n=>{ const x=new Date(hoy); x.setDate(x.getDate()+n); return isoLocalF(x); };
+  const nombre=d=>{ const i=isoLocalF(d); return i===dentro(1)?'Mañana':i===dentro(2)?'Pasado mañana':DS[d.getDay()].charAt(0).toUpperCase()+DS[d.getDay()].slice(1); };
+  const btn=d=>{ const i=isoLocalF(d); return '<button type="button" class="'+(v===i?'on':'')+'" data-fecha="'+i+'" onclick="ponFechaF(this.dataset.fecha)">'+nombre(d)+'<small>'+DS[d.getDay()].slice(0,3)+' '+d.getDate()+'/'+(d.getMonth()+1)+'</small></button>'; };
+  const otro=v && v!==isoLocalF(d1) && v!==isoLocalF(d2);
+  c.innerHTML=btn(d1)+btn(d2)+'<button type="button" class="'+(otro?'on':'')+'" onclick="otraFechaF()">Otro día<small>'+(otro?fecArt(v).slice(0,5):'calendario')+'</small></button>';
+  const el=document.getElementById('fechaElegidaF');
+  if(el){ if(v){ const d=new Date(v+'T12:00:00'); el.innerHTML='Transporte el <b>'+DS[d.getDay()]+' '+fecArt(v)+'</b>'; } else el.textContent=''; }
+}
+window.ponFechaF=function ponFechaF(iso){
+  const ft=document.getElementById('fecha_transporte'); ft.value=iso; ft.classList.remove('error');
+  const cal=document.getElementById('calF'); if(cal) cal.style.display='none';
+  ft.dispatchEvent(new Event('input',{bubbles:true})); ft.dispatchEvent(new Event('change',{bubbles:true}));
+};
+/* ---------- calendario «Otro día»: días no válidos en gris y sin poder tocarlos ---------- */
+let calMesF=null;   // primer día del mes que se ve
+window.otraFechaF=function otraFechaF(){
+  const cal=document.getElementById('calF'); if(!cal) return;
+  if(cal.style.display!=='none'){ cal.style.display='none'; return; }
+  const v=f('fecha_transporte'), base=v?new Date(v+'T12:00:00'):new Date();
+  calMesF=new Date(base.getFullYear(), base.getMonth(), 1);
+  cal.style.display=''; pintarCalF();
+};
+window.mesCalF=function mesCalF(n){ calMesF=new Date(calMesF.getFullYear(), calMesF.getMonth()+n, 1); pintarCalF(); };
+function pintarCalF(){
+  const cal=document.getElementById('calF'); if(!cal || !calMesF) return;
+  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const hoy=new Date(), hoyIso=isoLocalF(hoy), v=f('fecha_transporte');
+  const y=calMesF.getFullYear(), m=calMesF.getMonth(), nDias=new Date(y, m+1, 0).getDate();
+  const hueco=(new Date(y, m, 1).getDay()+6)%7;   // semana de lunes a domingo
+  const puedeAtras=(y>hoy.getFullYear()) || (y===hoy.getFullYear() && m>hoy.getMonth());
+  let h='<div class="cab"><button type="button" onclick="mesCalF(-1)"'+(puedeAtras?'':' disabled')+' aria-label="Mes anterior">‹</button><b>'+MESES[m]+' '+y+'</b><button type="button" onclick="mesCalF(1)" aria-label="Mes siguiente">›</button></div>'+
+    '<div class="sem">'+['L','M','X','J','V','S','D'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="dias">';
+  for(let i=0;i<hueco;i++) h+='<span></span>';
+  for(let d=1; d<=nDias; d++){
+    const iso=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const fest=FESTIVOS_TRANSPORTE_F.has(iso), mal=!!fechaTransporteMalF(iso);
+    const cls=(mal?'no':'')+(iso===v?' on':'')+(iso===hoyIso?' hoy':'');
+    h+=mal?'<span class="'+cls+'" title="'+(fest?'Festivo':iso<hoyIso?'Ya ha pasado':'Fin de semana')+'">'+d+'</span>'
+          :'<button type="button" class="'+cls+'" data-fecha="'+iso+'" onclick="ponFechaF(this.dataset.fecha)">'+d+'</button>';
+  }
+  cal.innerHTML=h+'</div><div class="ley">En gris: días pasados, sábados, domingos y festivos (transporte no reparte).</div>';
+}
+
+/* ---------- tienda: la última que usó este comercial en este móvil ---------- */
+function claveTiendaF(){ return 'pedidoTienda_'+((perfilActual&&perfilActual.email)||''); }
+function ponerTiendaRecordadaF(){
+  const t=document.getElementById('tienda'); if(!t || t.value || t.disabled) return;
+  let v=''; try{ v=localStorage.getItem(claveTiendaF())||''; }catch(e){}
+  if(v && [...t.options].some(o=>o.value===v)){ t.value=v; t.dispatchEvent(new Event('change',{bubbles:true})); }
+}
+esperarF(()=>perfilActual && document.getElementById('tienda').options.length>1, 30000).then(()=>setTimeout(ponerTiendaRecordadaF, 300));
+
+/* ---------- unidades con decimales ---------- */
+const UDS_DECIMALES_F=new Set(['m³','toneladas','kg','metros','m²','litros']);
+const addLineSinDecimalesF=window.addLine;
+window.addLine=function addLine(cod, desc, hist, ud){
+  const id=addLineSinDecimalesF.apply(this, arguments);
+  if(cod && id && UDS_DECIMALES_F.has(udTxtArt(ud))){
+    const u=document.getElementById('uni_'+id);
+    if(u){ u.type='text'; u.inputMode='decimal'; u.removeAttribute('step'); u.removeAttribute('min'); u.placeholder='0,0';
+      u.addEventListener('input', ()=>{ const v=u.value.replace(',', '.').replace(/[^0-9.]/g,''); if(v!==u.value) u.value=v; }); }
+  }
+  return id;
+};
+
+/* ---------- aviso ámbar de cantidad en el paso 2 ---------- */
+function avisoCantF(input){
+  const line=input.closest('.articulo-line'); if(!line || line.dataset.auto==='grua') return;
+  const art=line.querySelector('[id^=art_]'); if(!art) return;
+  const c=cod8Art(art.value), comp=COMPRAS[c], uq=comp?Number(comp.uq)||0:0, uni=Number(input.value)||0;
+  let a=line.querySelector('.aviso-cant-f');
+  if(!(uq>0 && uni>0 && (uni>3*uq || uni*3<uq))){ if(a) a.remove(); return; }
+  if(!a){ a=document.createElement('div'); a.className='aviso-cant-f'; line.appendChild(a); }
+  a.textContent='⚠ ¿Seguro? Muy distinto de la última vez: el '+fecArt(comp.uf)+' pidió '+cantArt(uq, comp.ud||(CAT_IDX[c]||{}).ud)+'.';
+}
+document.addEventListener('input', e=>{ if(/^uni_/.test((e.target&&e.target.id)||'')) avisoCantF(e.target); });
+
+/* ---------- una pregunta tras otra ---------- */
+var COBRO_F=new Set(['Cobro destino Efectivo','Cobro destino Datáfono','Paygold']);
+var CADENAS_F={
+  1:[{id:'cliente', ok:()=>!!clienteSeleccionado},
+     {id:'contacto_ln', ok:()=>!!f('contacto_ln') && (f('contacto_ln')!=='OTRO' || !!f('contacto_autorizado'))},
+     {id:'direccion', ok:()=>!!f('direccion')},
+     {id:'cp', ok:()=>true}],
+  3:[{id:'fecha_transporte', ok:()=>!!f('fecha_transporte') && !fechaTransporteMalF(f('fecha_transporte'))},
+     {id:'franja', ok:()=>!!f('franja')},
+     {id:'contacto_obra', ok:()=>!!f('contacto_obra')},
+     {id:'tlfo1', ok:()=>validateTel(f('tlfo1'))},
+     {id:'altF', el:true, ok:()=>true},
+     {id:'g_no', ok:()=>!!getRadio('grua')},
+     {id:'ce_si', ok:()=>!!getRadio('calle_estrecha')},
+     {id:'cr_si', ok:()=>getRadio('calle_restringida')==='No' || (getRadio('calle_restringida')==='Sí' && !!f('restr_desde') && !!f('restr_hasta'))},
+     {id:'ad_si', ok:()=>!!getRadio('adelantar')}],
+  4:[{id:'forma_pago', ok:()=>!!f('forma_pago')},
+     {id:'cantidad', si:()=>COBRO_F.has(f('forma_pago')), ok:()=>true, pide:()=>!f('cantidad')},
+     {id:'datos_importantes', ok:()=>true}]
+};
+function bloqueCadenaF(it){ return it.el?document.getElementById(it.id):bloqueCampoF(it.id); }
+function actualizarCadenasF(){
+  if(!CADENAS_F) return;   // (pintarPasoF la llama antes de que exista)
+  pintarFechasF();          // por si la fecha se ha puesto sin evento (pedido a medias)
+  Object.values(CADENAS_F).forEach(cad=>{
+    let previoOk=true;
+    cad.forEach(it=>{
+      const b=bloqueCadenaF(it); if(!b) return;
+      const ver=previoOk && (it.si?it.si():true);
+      b.classList.toggle('oculto-f', !ver);
+      if(ver && !it.ok()) previoOk=false;   // las siguientes esperan a que se conteste esta
+    });
+  });
+  // sin cobro en destino ni Paygold no hay cantidad a cobrar
+  const cant=document.getElementById('cantidad'); if(cant && cant.value && f('forma_pago') && !COBRO_F.has(f('forma_pago'))) cant.value='';
+  // bloque sin nada visible: fuera también su título
+  document.querySelectorAll('.paso-f .section').forEach(s=>{
+    const hijos=[...s.children].filter(x=>!x.classList.contains('section-title') && !x.classList.contains('hint'));
+    if(hijos.length) s.classList.toggle('oculto-f', hijos.every(x=>x.classList.contains('oculto-f')));
+  });
+}
+function itemDeF(el){
+  for(const [p,cad] of Object.entries(CADENAS_F)) for(const it of cad){ const b=bloqueCadenaF(it); if(b && b.contains(el)) return {p:+p, it, cad}; }
+  return null;
+}
+function cerrarTecladoF(){ const a=document.activeElement; if(a && a!==document.body && a.blur && a.matches && a.matches('input,textarea')) a.blur(); }
+function avanzarF(el){
+  if(borradorPausado) return;
+  const x=itemDeF(el); if(!x || x.p!==pasoF || !x.it.ok()) return;
+  actualizarCadenasF();
+  const i=x.cad.indexOf(x.it);
+  const sig=x.cad.slice(i+1).find(it=>{ const b=bloqueCadenaF(it); return b && !b.classList.contains('oculto-f') && (!it.ok() || (it.pide && it.pide())); });
+  if(!sig){ cerrarTecladoF(); return; }
+  const b=bloqueCadenaF(sig);
+  setTimeout(()=>{
+    b.scrollIntoView({block:'center', behavior:'smooth'});
+    const inp=b.querySelector('input:not([type=radio]):not([type=hidden]):not([type=date]):not([type=time]), textarea');
+    if(inp && !inp.disabled && inp.offsetParent!==null) inp.focus({preventScroll:true}); else cerrarTecladoF();
+  }, 80);
+}
+document.addEventListener('change', e=>{
+  const t=e.target; if(!t || !t.closest || !t.closest('.paso-f')) return;
+  if(t.type==='radio'){ const fl=t.closest('.field'); if(fl) fl.classList.remove('falta-f'); }
+  if(t.id==='fecha_transporte'){ const m=fechaTransporteMalF(t.value); t.classList.toggle('error', !!m); if(m) errF(m); else okF(); }   // avisa en el momento (sábado, domingo o pasada)
+  actualizarCadenasF();
+  if(t.tagName==='TEXTAREA' || ['text','tel','number','search','email'].includes(t.type)) return;   // texto: con Intro o al completar el teléfono
+  avanzarF(t);
+});
+document.addEventListener('input', e=>{
+  const t=e.target; if(!t || !t.closest || !t.closest('.paso-f') || /^uni_|^buscaArt$/.test(t.id||'')) return;
+  actualizarCadenasF();
+  if(t.id==='tlfo1' && validateTel(t.value)) avanzarF(t);
+});
+document.addEventListener('keydown', e=>{
+  const t=e.target; if(e.key!=='Enter' || !t || !t.closest || !t.closest('.paso-f') || t.tagName==='TEXTAREA' || /^uni_|^buscaArt$/.test(t.id||'')) return;
+  if(itemDeF(t)){ e.preventDefault(); actualizarCadenasF(); avanzarF(t); }
+});
+onClienteSeleccionado=(function(o){ return function(it){ o(it); actualizarCadenasF(); avanzarF(document.getElementById('cliente')); }; })(onClienteSeleccionado);
+pintarContactos=(function(o){ return function(){ o(); actualizarCadenasF(); }; })(pintarContactos);
+elegirObra=(function(o){ return function(it){ o(it); actualizarCadenasF(); }; })(elegirObra);
+actualizarCadenasF();
 
 (async function init(){
   setFechaAuto();
