@@ -814,13 +814,14 @@ window.enviarPedido=async function enviarPedido(){
     if(conRed) await trasGuardarPedido(refPed.id);   // borra el borrador y enlaza la visita (solo con el pedido guardado)
     else {
       trasGuardarPedido(refPed.id).catch(e=>console.error('tras guardar sin red', e));   // borra el borrador ya; la visita se enlaza al volver la señal
-      escritura.then(()=>showStatus('✅ El pedido que se guardó sin cobertura ya ha llegado a transporte.', true))
+      escritura.then(()=>{ const sb=document.getElementById('statusBanner'), d=document.createElement('div');   // se añade debajo: no quita el botón del correo
+                           d.style.cssText='margin-top:8px;font-weight:800'; d.textContent='✅ El pedido que se guardó sin cobertura ya ha llegado a transporte.'; sb.appendChild(d); sb.classList.add('show'); })
                .catch(e=>showStatus('❌ El pedido guardado sin cobertura no se ha podido enviar ('+e.message+'). Avisa a transporte.', false));
     }
     limpiarFormulario(true);
     botonVolverTrasGuardar();
     if(pedido.tiendaEmailDestino){
-      showStatus(conRed?'✅ Pedido guardado. Ahora envía el correo a transporte:':'📶 Sin cobertura: el pedido queda guardado en el móvil y se enviará solo al volver la señal. NO lo vuelvas a pasar. Envía también el correo a transporte:', true);
+      showStatus(conRed?'✅ Pedido guardado. Ahora envía el correo a transporte:':'📶 Sin cobertura: el pedido queda guardado en el móvil y se enviará solo al volver la señal con la app abierta (o la próxima vez que la abras). NO lo vuelvas a pasar. Envía también el correo a transporte:', true);
       mostrarBotonCorreo(urlCorreoPedido(pedido));
     } else {
       showStatus('Pedido guardado, pero esta tienda todavía no tiene email de transporte configurado. Avisa a transporte manualmente.', false);
@@ -2013,7 +2014,13 @@ function validarPasoF(k){
     if(malF){ ft.classList.add('error'); return errF(malF); }   // 21/11 (Rossy): mínimo hoy y solo de lunes a viernes
     return okF();
   }
-  if(k===4){ m=faltanF(['forma_pago']); if(m.length) return errF('Falta: '+m.join(', ')); return okF(); }
+  if(k===4){
+    m=faltanF(['forma_pago']); if(m.length) return errF('Falta: '+m.join(', '));
+    const ca=document.getElementById('cantidad');   // 21/11 (Rossy): obligatoria con cobro en destino
+    if(['Cobro destino Efectivo','Cobro destino Datáfono'].includes(f('forma_pago')) && !(+f('cantidad')>0)){ ca.classList.add('error'); return errF('Con cobro en destino pon la cantidad a cobrar: el conductor tiene que saber cuánto cobrar.'); }
+    if(ca) ca.classList.remove('error');
+    return okF();
+  }
   return true;
 }
 
@@ -2085,9 +2092,12 @@ const RADIOS_BORR_F=['grua','calle_estrecha','calle_restringida','adelantar'];
 guardarBorrador=function(){
   if(borradorPausado || !perfilActual) return;
   const lin=lineasActuales();
-  if(!lin.length && !clienteSeleccionado) return;   // sin cliente ni artículos no hay pedido a medias
   const campos={}; CAMPOS_BORR_F.forEach(id=>{ const e=document.getElementById(id); if(e && e.value) campos[id]=e.value; });
   const radios={}; RADIOS_BORR_F.forEach(n=>{ const r=document.querySelector('input[name="'+n+'"]:checked'); if(r) radios[n]=r.value; });
+  // 21/11 (2.ª revisión): solo con el cliente (o lo que se pone solo: comercial, tienda, contacto único) NO es un pedido a medias.
+  // Así, entrar desde el Rutero con otro cliente no pisa el pedido a medias que hubiera.
+  const tocado=Object.keys(campos).some(k=>!['comercial','tienda','contacto_ln'].includes(k)) || Object.keys(radios).length>0;
+  if(!lin.length && !tocado) return;
   const b={t:Date.now(), partner:clienteSeleccionado?clienteSeleccionado.partner:'', razon:clienteSeleccionado?clienteSeleccionado.razonSocial:'',
            visita:ENTRADA.visita||'', lineas:lin, obs:campos.datos_importantes||'', campos, radios, obra:obraElegida?obraElegida.cod:'', paso:pasoF};
   try{ localStorage.setItem(claveBorrador(), JSON.stringify(b)); }catch(e){}
@@ -2105,7 +2115,9 @@ recuperarBorrador=async function(b){
       onClienteSeleccionado({partner:b.partner, razonSocial:b.razon});
       await esperarF(()=>document.getElementById('contacto_ln').options.length>1, 8000);   // contactos y obras de LN cargados
     }
-    if(b.visita && !ENTRADA.visita) ENTRADA.visita=b.visita;
+    // la visita va con SU cliente: si se recupera el pedido a medias de otro cliente, no se queda con la visita del Rutero de ahora
+    if(b.partner && ENTRADA.cliente && b.partner!==ENTRADA.cliente) ENTRADA.visita=b.visita||'';
+    else if(b.visita && !ENTRADA.visita) ENTRADA.visita=b.visita;
     if(pon('contacto_ln')) cambioContactoLN();
     pon('contacto_autorizado');
     const obra=b.obra && obrasCliente.find(o=>o.cod===b.obra);
@@ -2121,9 +2133,13 @@ recuperarBorrador=async function(b){
       const dt=document.getElementById('dto_'+id); if(dt) dt.value=l.dto;
     });
     if(c.contacto_alt || c.tlfo2){ const a=document.getElementById('altF'); if(a) a.open=true; }
+    // fecha de transporte que ya no vale (pasada, fin de semana o festivo): se quita y se avisa
+    const ftB=document.getElementById('fecha_transporte'), malB=ftB && ftB.value ? fechaTransporteMalF(ftB.value) : '';
+    if(malB) ftB.value='';
     actualizarCadenasF();
     programarAlmacen();
     if(b.paso) irPasoF(b.paso, true);
+    if(malB) showStatus('La fecha de transporte del pedido a medias ya no vale ('+malB.replace(/\.$/,'').toLowerCase()+'). Elige otra en el paso 3.', false);
   }finally{ borradorPausado=false; guardarBorrador(); }
 };
 
@@ -2177,6 +2193,11 @@ details.alt-f[open] summary{margin-bottom:6px}
 .cal-f .dias .hoy{box-shadow:inset 0 0 0 2px var(--bm-blue-mid)}
 .cal-f .dias button.on{background:var(--bm-blue);border-color:var(--bm-blue);color:#fff}
 .cal-f .ley{font-size:11.5px;color:#646568;margin-top:6px}
+.bsel-f{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.bsel-f.dos{grid-template-columns:1fr 1fr}
+.bsel-f button{min-height:48px;border:1.5px solid var(--bm-blue-mid);border-radius:10px;background:#fff;color:var(--bm-blue);font-weight:800;font-size:13.5px;line-height:1.25;cursor:pointer;font-family:inherit;padding:6px}
+.bsel-f button.on{background:var(--bm-blue);border-color:var(--bm-blue);color:#fff}
+.field:has(select.error) .bsel-f button{border-color:var(--bm-red)}
 .fecha-elegida-f{font-size:13.5px;color:#1a1a2e;margin:2px 0 4px}
 .field:has(#fecha_transporte.error) .fechas-f button{border-color:var(--bm-red)}
 .aviso-cant-f{font-size:12px;font-weight:700;color:#9a5b00;background:#fff4e0;border-radius:6px;padding:5px 8px;margin-top:6px}
@@ -2202,6 +2223,26 @@ details.alt-f[open] summary{margin-bottom:6px}
     ft.style.display='none';
     ft.addEventListener('change', pintarFechasF); ft.addEventListener('input', pintarFechasF); pintarFechasF(); }
 })();
+
+/* ---------- 21/11 (Rossy): franja y forma de pago con BOTONES (1 toque en vez de 2; nada marcado de antemano) ----------
+   El desplegable sigue existiendo (oculto) y guarda el valor: mismas validaciones, mismo pedido. */
+function botonesDeSelectF(id, cols){
+  const sel=document.getElementById(id); if(!sel || document.getElementById('bot_'+id)) return;
+  const c=document.createElement('div'); c.className='bsel-f'+(cols===2?' dos':''); c.id='bot_'+id;
+  sel.parentNode.insertBefore(c, sel); sel.style.display='none';
+  sel.addEventListener('change', ()=>pintarBotonesSelF(id));
+  pintarBotonesSelF(id);
+}
+function pintarBotonesSelF(id){
+  const sel=document.getElementById(id), c=document.getElementById('bot_'+id); if(!sel || !c) return;
+  c.innerHTML=[...sel.options].filter(o=>o.value).map(o=>'<button type="button" class="'+(sel.value===o.value?'on':'')+'" data-v="'+esc(o.value)+'" onclick="elegirBotonSelF(\''+id+'\', this.dataset.v)">'+esc(o.textContent)+'</button>').join('');
+}
+window.elegirBotonSelF=function elegirBotonSelF(id, v){
+  const sel=document.getElementById(id); if(!sel) return;
+  sel.value=v; sel.classList.remove('error');
+  sel.dispatchEvent(new Event('input',{bubbles:true})); sel.dispatchEvent(new Event('change',{bubbles:true}));
+};
+botonesDeSelectF('franja', 3); botonesDeSelectF('forma_pago', 2);
 
 /* ---------- fecha: próximo laborable, el siguiente, otro día ---------- */
 function laborableF(d, n){ const x=new Date(d); let k=0; while(k<n){ x.setDate(x.getDate()+1); if(esLaborableF(isoLocalF(x))) k++; } return x; }
@@ -2288,6 +2329,8 @@ document.addEventListener('input', e=>{ if(/^uni_/.test((e.target&&e.target.id)|
 
 /* ---------- una pregunta tras otra ---------- */
 var COBRO_F=new Set(['Cobro destino Efectivo','Cobro destino Datáfono','Paygold']);
+// 21/11 (Rossy): con cobro en destino la cantidad es OBLIGATORIA (el conductor tiene que saber cuánto cobrar)
+var COBRO_DESTINO_F=new Set(['Cobro destino Efectivo','Cobro destino Datáfono']);
 var CADENAS_F={
   1:[{id:'cliente', ok:()=>!!clienteSeleccionado},
      {id:'contacto_ln', ok:()=>!!f('contacto_ln') && (f('contacto_ln')!=='OTRO' || !!f('contacto_autorizado'))},
@@ -2303,13 +2346,16 @@ var CADENAS_F={
      {id:'cr_si', ok:()=>getRadio('calle_restringida')==='No' || (getRadio('calle_restringida')==='Sí' && !!f('restr_desde') && !!f('restr_hasta'))},
      {id:'ad_si', ok:()=>!!getRadio('adelantar')}],
   4:[{id:'forma_pago', ok:()=>!!f('forma_pago')},
-     {id:'cantidad', si:()=>COBRO_F.has(f('forma_pago')), ok:()=>true, pide:()=>!f('cantidad')},
+     {id:'cantidad', si:()=>COBRO_F.has(f('forma_pago')), ok:()=>!COBRO_DESTINO_F.has(f('forma_pago')) || +f('cantidad')>0, pide:()=>!f('cantidad')},
      {id:'datos_importantes', ok:()=>true}]
 };
 function bloqueCadenaF(it){ return it.el?document.getElementById(it.id):bloqueCampoF(it.id); }
 function actualizarCadenasF(){
   if(!CADENAS_F) return;   // (pintarPasoF la llama antes de que exista)
   pintarFechasF();          // por si la fecha se ha puesto sin evento (pedido a medias)
+  pintarBotonesSelF('franja'); pintarBotonesSelF('forma_pago');
+  const labCant=document.getElementById('cantidad')?.closest('.field')?.querySelector('label');
+  if(labCant) labCant.classList.toggle('required', COBRO_DESTINO_F.has(f('forma_pago')));
   Object.values(CADENAS_F).forEach(cad=>{
     let previoOk=true;
     cad.forEach(it=>{
@@ -2320,7 +2366,8 @@ function actualizarCadenasF(){
     });
   });
   // sin cobro en destino ni Paygold no hay cantidad a cobrar
-  const cant=document.getElementById('cantidad'); if(cant && cant.value && f('forma_pago') && !COBRO_F.has(f('forma_pago'))) cant.value='';
+  const cant=document.getElementById('cantidad');
+  if(cant && cant.value && f('forma_pago') && !COBRO_F.has(f('forma_pago'))){ cant.value=''; if(pasoF===4) pintarResumenPasoF(); }   // el resumen, ya sin «cobrar X €»
   // bloque sin nada visible: fuera también su título
   document.querySelectorAll('.paso-f .section').forEach(s=>{
     const hijos=[...s.children].filter(x=>!x.classList.contains('section-title') && !x.classList.contains('hint'));
@@ -2362,6 +2409,13 @@ document.addEventListener('input', e=>{
 document.addEventListener('keydown', e=>{
   const t=e.target; if(e.key!=='Enter' || !t || !t.closest || !t.closest('.paso-f') || t.tagName==='TEXTAREA' || /^uni_|^buscaArt$/.test(t.id||'')) return;
   if(itemDeF(t)){ e.preventDefault(); actualizarCadenasF(); avanzarF(t); }
+});
+// 21/11 (2.ª revisión): elegir de cualquier lista de sugerencias (contacto en obra de un pedido anterior, dirección, obra…)
+// también hace avanzar la cadena; antes solo se rellenaba el valor y no aparecían las preguntas siguientes
+document.addEventListener('click', e=>{
+  const it=e.target && e.target.closest && e.target.closest('.paso-f .autocomplete-item'); if(!it) return;
+  const fld=it.closest('.field');
+  setTimeout(()=>{ actualizarCadenasF(); const inp=fld && fld.querySelector('input'); if(inp) avanzarF(inp); }, 0);
 });
 onClienteSeleccionado=(function(o){ return function(it){ o(it); actualizarCadenasF(); avanzarF(document.getElementById('cliente')); }; })(onClienteSeleccionado);
 pintarContactos=(function(o){ return function(){ o(); actualizarCadenasF(); }; })(pintarContactos);
