@@ -1879,7 +1879,7 @@ function contarOtroArt(){
 }
 new MutationObserver(contarOtroArt).observe(document.getElementById('articulos-container'), {childList:true});
 document.addEventListener('keydown', e=>{
-  if(e.key==='Enter' && e.target && /^uni_/.test(e.target.id||'')){ e.preventDefault(); irBuscadorArt(); }
+  if((e.key==='Enter' || e.keyCode===13) && e.target && /^uni_/.test(e.target.id||'')){ e.preventDefault(); irBuscadorArt(); }
 });
 
 /* ===== 21/11/2026 (Rossy) · PEDIDO POR PASOS · SOLO PRUEBA hasta su visto bueno =====
@@ -1909,7 +1909,7 @@ body.escribiendo-f .nav-f{display:none}
 .limpiar-f{display:block;margin:4px auto 14px;background:none;border:0;color:#646568;text-decoration:underline;font-size:13px;cursor:pointer;font-family:inherit}
 .busc-fijo{position:sticky;top:var(--cab2-f,0px);z-index:80;background:#fff;padding:4px 0 2px}
 .fijo-cli{top:var(--cab-f,0px)!important}
-.otro-art{display:none!important}
+.otro-art .hint{display:none}
 #barraPedido{display:none!important}`;
   document.head.appendChild(st);
 })();
@@ -2198,6 +2198,16 @@ details.alt-f[open] summary{margin-bottom:6px}
 .bsel-f button{min-height:48px;border:1.5px solid var(--bm-blue-mid);border-radius:10px;background:#fff;color:var(--bm-blue);font-weight:800;font-size:13.5px;line-height:1.25;cursor:pointer;font-family:inherit;padding:6px}
 .bsel-f button.on{background:var(--bm-blue);border-color:var(--bm-blue);color:#fff}
 .field:has(select.error) .bsel-f button{border-color:var(--bm-red)}
+.form-body{background:#F0F4FB}
+.paso-f .section{background:#fff;margin:12px 10px;border:1px solid #dde4ef;border-radius:14px;box-shadow:0 2px 6px rgba(26,58,107,.07);padding:14px}
+.paso-f .section-title{font-size:13.5px;font-weight:800;letter-spacing:.05em;margin:-2px 0 12px;padding-bottom:9px;border-bottom:1.5px solid #eef1f6}
+.paso-f .section-title::before{width:4px;height:16px}
+.paso-f .section-title .ic{font-size:16px;letter-spacing:0}
+.paso-f .busc-fijo{background:#fff}
+.limpiar-f{margin-top:2px}
+body.buscando-f .form-header,body.buscando-f .fijo-cli{position:static!important}
+body.buscando-f .busc-fijo{top:0!important}
+body.buscando-f .paso-f.on{padding-bottom:75vh}
 .fecha-elegida-f{font-size:13.5px;color:#1a1a2e;margin:2px 0 4px}
 .field:has(#fecha_transporte.error) .fechas-f button{border-color:var(--bm-red)}
 .aviso-cant-f{font-size:12px;font-weight:700;color:#9a5b00;background:#fff4e0;border-radius:6px;padding:5px 8px;margin-top:6px}
@@ -2205,6 +2215,12 @@ details.alt-f[open] summary{margin-bottom:6px}
   document.head.appendChild(st);
 })();
 
+// 21/11 (Rossy): cada bloque en su tarjeta, con icono en el título (antes los bloques se perdían)
+(function iconosTitulosF(){
+  const IC={'Cuándo':'📅','Contacto en obra':'👷','Descarga':'🚚','Pedido':'🏢','Cliente':'👤','Obra o dirección de entrega':'📍','Pago':'💳',
+            'Observaciones':'📝','Resumen del pedido':'📋','Líneas de pedido':'🛒','Almacén que sirve (propuesta automática)':'🏭'};
+  document.querySelectorAll('.paso-f .section-title').forEach(t=>{ const k=t.textContent.trim(); if(IC[k] && !t.querySelector('.ic')) t.insertAdjacentHTML('afterbegin','<span class="ic" aria-hidden="true">'+IC[k]+'</span> '); });
+})();
 (function montarExtrasF(){
   const fa=bloqueCampoF('fecha_auto'); if(fa) fa.classList.add('oculto-f');
   // contacto alternativo plegado, en su sitio
@@ -2307,6 +2323,9 @@ const UDS_DECIMALES_F=new Set(['m³','toneladas','kg','metros','m²','litros']);
 const addLineSinDecimalesF=window.addLine;
 window.addLine=function addLine(cod, desc, hist, ud){
   const id=addLineSinDecimalesF.apply(this, arguments);
+  // 21/11 (Rossy, móvil): la tecla del teclado en unidades/dto. pasaba al campo siguiente («→») y no se podía seguir.
+  // Con «done» el teclado muestra «✓» y manda Intro: lleva al buscador para el siguiente artículo.
+  if(cod && id) ['uni_','dto_','desc_'].forEach(p=>{ const e=document.getElementById(p+id); if(e){ e.enterKeyHint='done'; e.setAttribute('enterkeyhint','done'); } });
   if(cod && id && UDS_DECIMALES_F.has(udTxtArt(ud))){
     const u=document.getElementById('uni_'+id);
     if(u){ u.type='text'; u.inputMode='decimal'; u.removeAttribute('step'); u.removeAttribute('min'); u.placeholder='0,0';
@@ -2314,6 +2333,35 @@ window.addLine=function addLine(cod, desc, hist, ud){
   }
   return id;
 };
+
+// Intro (o «✓») en unidades, dto. o descripción de una línea → al buscador (antes solo desde unidades)
+document.addEventListener('keydown', e=>{
+  const t=e.target; if(!t || !(e.key==='Enter' || e.keyCode===13)) return;
+  if(/^(dto_|desc_)/.test(t.id||'') && t.closest('#articulos-container')){ e.preventDefault(); t.blur(); irBuscadorArt(); }
+});
+(function textoOtroArtF(){ const b=document.getElementById('btnOtroArt'); if(b) b.closest('.otro-art').style.marginBottom='4px'; })();
+
+/* ---------- 21/11 (Rossy, móvil): al tocar el buscador el teclado tapaba los resultados ----------
+   Mientras se busca: la cabecera y la barra del cliente dejan de estar fijas, el buscador sube arriba del todo
+   y la lista ocupa todo el hueco visible hasta el teclado (se recalcula si el teclado cambia de alto). */
+if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
+  const q=document.getElementById('buscaArt');
+  const ajustarListaF=()=>{
+    if(!q || document.activeElement!==q) return;
+    const r=document.getElementById('resArt'), vv=window.visualViewport;
+    const alto=(vv?vv.height:window.innerHeight)-q.getBoundingClientRect().bottom-10;
+    if(r) r.style.maxHeight=Math.max(150, alto)+'px';
+  };
+  if(q){
+    q.addEventListener('focus', ()=>{
+      document.body.classList.add('buscando-f');
+      setTimeout(()=>{ window.scrollTo({top:q.getBoundingClientRect().top+window.scrollY-6}); ajustarListaF(); }, 350);   // cuando ya ha salido el teclado
+    });
+    q.addEventListener('blur', ()=>setTimeout(()=>{ if(document.activeElement!==q){ document.body.classList.remove('buscando-f'); const r=document.getElementById('resArt'); if(r) r.style.maxHeight=''; } }, 250));
+    q.addEventListener('input', ajustarListaF);
+    if(window.visualViewport) visualViewport.addEventListener('resize', ()=>setTimeout(ajustarListaF, 50));
+  }
+}
 
 /* ---------- aviso ámbar de cantidad en el paso 2 ---------- */
 function avisoCantF(input){
@@ -2332,7 +2380,10 @@ var COBRO_F=new Set(['Cobro destino Efectivo','Cobro destino Datáfono','Paygold
 // 21/11 (Rossy): con cobro en destino la cantidad es OBLIGATORIA (el conductor tiene que saber cuánto cobrar)
 var COBRO_DESTINO_F=new Set(['Cobro destino Efectivo','Cobro destino Datáfono']);
 var CADENAS_F={
-  1:[{id:'cliente', ok:()=>!!clienteSeleccionado},
+  1:[{id:'comercial', ok:()=>!!f('comercial')},
+     {id:'tienda', ok:()=>!!f('tienda')},
+     {id:'partner', ok:()=>true},   // va con el cliente (se busca por nombre o por código)
+     {id:'cliente', ok:()=>!!clienteSeleccionado},
      {id:'contacto_ln', ok:()=>!!f('contacto_ln') && (f('contacto_ln')!=='OTRO' || !!f('contacto_autorizado'))},
      {id:'direccion', ok:()=>!!f('direccion')},
      {id:'cp', ok:()=>true}],
@@ -2384,11 +2435,21 @@ function avanzarF(el){
   const x=itemDeF(el); if(!x || x.p!==pasoF || !x.it.ok()) return;
   actualizarCadenasF();
   const i=x.cad.indexOf(x.it);
-  const sig=x.cad.slice(i+1).find(it=>{ const b=bloqueCadenaF(it); return b && !b.classList.contains('oculto-f') && (!it.ok() || (it.pide && it.pide())); });
-  if(!sig){ cerrarTecladoF(); return; }
+  let sig=x.cad.slice(i+1).find(it=>{ const b=bloqueCadenaF(it); return b && !b.classList.contains('oculto-f') && (!it.ok() || (it.pide && it.pide())); });
+  // 21/11 (Rossy): si lo que sigue es opcional (observaciones, contacto alternativo…) también se baja hasta ello, pero sin abrir el teclado
+  let soloVer=false;
+  if(!sig){ sig=x.cad.slice(i+1).find(it=>{ const b=bloqueCadenaF(it); return b && !b.classList.contains('oculto-f'); }); soloVer=true; }
+  if(!sig){   // fin de la cadena: al siguiente bloque visible del paso (p. ej. el resumen)
+    cerrarTecladoF();
+    let n=el.closest('.section'); n=n && n.nextElementSibling;
+    while(n && (!n.classList.contains('section') || n.classList.contains('oculto-f'))) n=n.nextElementSibling;
+    if(n) setTimeout(()=>n.scrollIntoView({block:'start', behavior:'smooth'}), 80);
+    return;
+  }
   const b=bloqueCadenaF(sig);
   setTimeout(()=>{
     b.scrollIntoView({block:'center', behavior:'smooth'});
+    if(soloVer){ cerrarTecladoF(); return; }
     const inp=b.querySelector('input:not([type=radio]):not([type=hidden]):not([type=date]):not([type=time]), textarea');
     if(inp && !inp.disabled && inp.offsetParent!==null) inp.focus({preventScroll:true}); else cerrarTecladoF();
   }, 80);
