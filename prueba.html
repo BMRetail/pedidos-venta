@@ -292,6 +292,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="res-art" id="resArt"></div>
       <div class="hint">Primero sale lo que <b>ya compra este cliente</b>; debajo, el resto del catálogo. Pulsa <b>+</b> y escribe las unidades.</div>
       <div id="articulos-container"></div>
+      <div class="otro-art"><button type="button" id="btnOtroArt" onclick="irBuscadorArt()">➕ Añadir otro artículo</button>
+        <div class="hint">¿Ya está todo? Baja hasta el final y pulsa <b>Guardar pedido</b>: antes de guardar te enseña el resumen.</div></div>
     </div>
 
     <div class="section" id="almacenSec">
@@ -1822,6 +1824,34 @@ window.confirmarRevisionPedido=async function confirmarRevisionPedido(){
   cerrarRevisionPedido();
   await guardarPedidoSinRevisar();
 };
+
+/* ---------- 21/11/2026 (Rossy): tras escribir las unidades no se veía cómo seguir ----------
+   Debajo de las líneas: «➕ Añadir otro artículo» (lleva al buscador) y el recordatorio de «Guardar pedido».
+   «Intro»/«Ir» en las unidades también lleva al buscador. */
+(function estilosOtroArt(){
+  const st=document.createElement('style');
+  st.textContent=`
+.otro-art{margin-top:10px}
+.otro-art button{width:100%;min-height:48px;border:2px dashed var(--bm-blue);border-radius:12px;background:var(--bm-blue-light);color:var(--bm-blue);font-weight:800;font-size:15px;cursor:pointer}
+.otro-art .hint{margin-top:6px;text-align:center}
+#articulos-container:empty + .otro-art{display:none}`;
+  document.head.appendChild(st);
+})();
+window.irBuscadorArt=function irBuscadorArt(){
+  const q=document.getElementById('buscaArt'); if(!q) return;
+  q.value=''; q.focus({preventScroll:true});
+  q.scrollIntoView({block:'center', behavior:'smooth'});
+  buscarArt();
+};
+function contarOtroArt(){
+  const b=document.getElementById('btnOtroArt'); if(!b) return;
+  const n=document.querySelectorAll('#articulos-container .articulo-line:not([data-auto="grua"])').length;
+  b.textContent='➕ Añadir otro artículo'+(n?' (llevas '+n+')':'');
+}
+new MutationObserver(contarOtroArt).observe(document.getElementById('articulos-container'), {childList:true});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target && /^uni_/.test(e.target.id||'')){ e.preventDefault(); irBuscadorArt(); }
+});
 
 (async function init(){
   setFechaAuto();
