@@ -411,7 +411,7 @@ function getLineas(){
   document.querySelectorAll('[id^="line-"]').forEach(function(div){
     const id=div.id.replace('line-','');
     const art=f('art_'+id), uni=f('uni_'+id), dto=f('dto_'+id), desc=f('desc_'+id);
-    if(art||uni) lines.push({articuloCodigo:art.padStart(8,'0').slice(-8), unidades:uni?Number(uni):0, descuentoPct:dto?Number(dto):0, descripcion:desc});
+    if(art||uni) lines.push({articuloCodigo:art.padStart(8,'0').slice(-8), unidades:uni?Number(uni):0, descuentoPct:dto?Number(dto):0, descripcion:desc, ...(div.dataset.manual==='1'?{manual:true}:{})});
   });
   return lines;
 }
@@ -670,6 +670,8 @@ function validate(){
   if(ft.value){ const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1); const selected=new Date(ft.value+'T00:00:00'); if(selected<yesterday){ ft.classList.add('error'); showStatus('La fecha de transporte no puede ser anterior a ayer.', false); return false; } }
   const lineas=getLineas();
   if(lineas.length===0){ showStatus('Añade al menos una línea de artículo.', false); return false; }
+  const sinDescManual=[...document.querySelectorAll('.articulo-line[data-manual="1"]')].filter(d=>{ const e=d.querySelector('[id^=desc_]'); const mal=!e||e.value.trim().length<3; if(e) e.classList.toggle('error',mal); return mal; });
+  if(sinDescManual.length){ showStatus('Escribe qué artículo es en las líneas metidas a mano (código fuera del catálogo).', false); return false; }
   let faltaCantidad=false;
   document.querySelectorAll('[id^="line-"]').forEach(function(div){
     const id=div.id.replace('line-','');
@@ -732,7 +734,7 @@ function construirCuerpoPedido(p){
   out+='Cantidad a cobrar: '+valorLegible(p.cantidadCobrar)+'\n\n';
   out+='LÍNEAS DE PEDIDO\n';
   (p.lineas||[]).forEach(function(l){
-    out+='- '+(l.articuloCodigo||'')+' | '+(l.descripcion||'')+' | '+(l.unidades||'')+' uds | Dto '+(l.descuentoPct||0)+'%\n';
+    out+='- '+(l.articuloCodigo||'')+' | '+(l.descripcion||'')+' | '+(l.unidades||'')+' uds | Dto '+(l.descuentoPct||0)+'%'+(l.manual?' | CÓDIGO A MANO (fuera del catálogo de la app)':'')+'\n';
   });
   return out;
 }
@@ -1086,7 +1088,9 @@ async function calcularAlmacen(){
   const sec=document.getElementById('almacenSec');
   if(!enCircuitoTransporte()){ almacenCalculado=null; if(sec) sec.style.display='none'; return; }
   if(sec) sec.style.display='';
-  const lineas=getLineas().filter(l=>l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA && l.unidades>0);
+  const lineas=getLineas().filter(l=>l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA && l.unidades>0 && !l.manual);
+  const hayManual=getLineas().some(l=>l.manual);
+  if(!lineas.length && hayManual){ almacenCalculado=null; box.className='alm-sug parcial'; box.textContent='Solo hay artículos metidos a mano (fuera del catálogo): el almacén lo decide transporte.'; return; }
   if(!lineas.length || (!f('cp') && !f('municipio'))){ almacenCalculado=null; box.className='alm-sug'; box.textContent='Elige la obra y los artículos para calcularlo.'; return; }
   box.className='alm-sug'; box.textContent='Calculando…';
   try{
@@ -1101,6 +1105,7 @@ async function calcularAlmacen(){
     if(antes.length) h+='<div class="hint">'+antes.map(x=>esc(NOMBRE_ALM[x.w])+' ('+x.min+' min) no tiene: '+x.faltan.map(cod=>{
       const s=(stock[cod]||{})[x.w]; return esc(sinCeros(cod))+(s&&s[1]>0?' (llegan '+s[1]+(s[2]?' el '+s[2].split('-').reverse().slice(0,2).join('/'):'')+')':''); }).join(', ')).join(' · ')+'</div>';
     if(!r.completo) h+='<div class="hint">Ningún almacén tiene todo: se propone el más cercano con más líneas completas. Lo revisa transporte.</div>';
+    if(hayManual) h+='<div class="hint">⚠ Los artículos metidos a mano no cuentan en este cálculo: el almacén lo confirma transporte.</div>';
     box.className='alm-sug'+(r.completo?'':' parcial'); box.innerHTML=h;
   }catch(e){ console.error(e); almacenCalculado=null; box.textContent='No se pudo calcular el almacén: '+e.message; }
 }
@@ -1188,7 +1193,7 @@ function tarjetaCarga(p, stock){
   const av=avisosPedido(p).map(x=>'<div class="aviso-rojo">⚠ '+esc(x)+'</div>').join('');
   const fecha=p.creadoEn&&p.creadoEn.toDate?p.creadoEn.toDate().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
   const tabla='<table class="tabla-stock"><tr><th>Artículo</th><th>Pide</th>'+ALMACENES_TRANSPORTE.map(a=>'<th>'+esc(a.n)+'</th>').join('')+'</tr>'+
-    lin.map(l=>'<tr><td>'+esc(sinCeros(l.articuloCodigo))+' <small>'+esc((l.descripcion||'').slice(0,28))+'</small></td><td>'+l.unidades+'</td>'+ALMACENES_TRANSPORTE.map(a=>{
+    lin.map(l=>'<tr><td>'+esc(sinCeros(l.articuloCodigo))+' <small>'+esc((l.descripcion||'').slice(0,28))+'</small>'+(l.manual?' <span class="tag rojo">⚠ código a mano</span>':'')+'</td><td>'+l.unidades+'</td>'+ALMACENES_TRANSPORTE.map(a=>{
       const s=(stock[l.articuloCodigo]||{})[a.w]||[0,0,'']; return '<td><span class="'+(s[0]>=l.unidades?'ok':'mal')+'">'+Math.round(s[0]).toLocaleString('es-ES')+'</span>'+(s[1]>0?'<br><small class="amb">+'+Math.round(s[1]).toLocaleString('es-ES')+' en camino'+(s[2]?' ('+s[2].split('-').reverse().slice(0,2).join('/')+')':'')+'</small>':'')+'</td>'; }).join('')+'</tr>').join('')+'</table>';
   return '<div class="ped-carga" id="pc_'+p.id+'">'+
     '<h3>'+esc(p.clienteRazonSocial)+' · '+esc(sinCeros(p.clientePartner))+(p.prueba?' <span class="tag">prueba</span>':'')+antiguedad(p)+'</h3>'+
@@ -1609,7 +1614,7 @@ function borrarBorrador(){ try{ localStorage.removeItem(claveBorrador()); }catch
 function lineasActuales(){
   return [...document.querySelectorAll('#articulos-container .articulo-line')].filter(l=>l.dataset.auto!=='grua').map(l=>({
     c:(l.querySelector('[id^=art_]')||{}).value||'', d:(l.querySelector('[id^=desc_]')||{}).value||'',
-    u:(l.querySelector('[id^=uni_]')||{}).value||'', dto:(l.querySelector('[id^=dto_]')||{}).value||'',
+    m:l.dataset.manual==='1', u:(l.querySelector('[id^=uni_]')||{}).value||'', dto:(l.querySelector('[id^=dto_]')||{}).value||'',
     ud:((l.querySelector('[id^=uni_]')||{}).closest?.('.field')?.querySelector('label')?.textContent.match(/\(([^)]+)\)/)||[])[1]||''
   })).filter(x=>x.c);
 }
@@ -1644,7 +1649,7 @@ async function recuperarBorrador(b){
     if(b.obs){ const o=document.getElementById('datos_importantes'); if(o) o.value=b.obs; }
     (b.lineas||[]).forEach(l=>{
       if(enPedidoArt(l.c)) return;
-      const id=addLine(l.c, l.d, '', l.ud);
+      const id=addLine(l.c, l.d, '', l.ud); if(l.m) hacerManualArt(id, l.d);
       const u=document.getElementById('uni_'+id); if(u){ u.value=l.u; u.classList.toggle('pide',!(+l.u>0)); }
       const dt=document.getElementById('dto_'+id); if(dt) dt.value=l.dto;
     });
@@ -1690,6 +1695,133 @@ function botonVolverTrasGuardar(){
   const b=document.createElement('button'); b.type='button'; b.className='volver-rutero'; b.id='volverTras'; b.textContent='← Volver al Rutero'; b.onclick=volverAlRutero;
   const ref=document.getElementById('statusBanner'); ref.parentNode.insertBefore(b, ref.nextSibling);
 }
+
+/* ===== 18/11/2026 (Rossy) · SOLO PRUEBA hasta su visto bueno =====
+   1) CÓDIGO A MANO: si lo buscado es un código que no está en el catálogo de la app (p. ej. artículos PED, bajo pedido),
+      sale «➕ Añadir el código X a mano». La línea lleva descripción obligatoria escrita por el comercial y la marca
+      «código a mano»: no cuenta en el cálculo del almacén y transporte la comprueba al cargarla (si el código no existe, LN la rechaza).
+   2a) «REVISA TU PEDIDO»: al pulsar «Guardar pedido» sale un resumen (cliente, obra, fecha, tienda, pago y líneas con las
+      unidades bien grandes) con «✏ Corregir» o «✓ Confirmar y guardar». Si una cantidad es más del triple o menos de un tercio
+      de la última vez que el cliente compró ese artículo (comprasLN), la línea sale en ámbar.
+   Usa lo ya definido en el módulo: esc, sinCeros, f, validate, getLineas, addLine, anadirArt, enPedidoArt, limpiarBuscadorArt,
+   programarAlmacen, CAT_IDX, COMPRAS, estadoCatalogo, clienteSeleccionado, fecArt, cantArt, SING_ART. */
+(function estilosManualRevision(){
+  const st=document.createElement('style');
+  st.textContent=`
+.res-art .manual-art{padding:10px 12px;border-top:1px dashed #d5dcea;background:#fffaf0}
+.res-art .manual-art button{width:100%;min-height:44px;border:1px dashed #9a5b00;border-radius:10px;background:#fff4e0;color:#7a4700;font-weight:800;font-size:14px;cursor:pointer}
+.res-art .manual-art small{display:block;margin-top:6px;color:#646568;font-size:12px;line-height:1.45}
+.articulo-line .aviso-manual{font-size:12px;font-weight:700;color:#9a5b00;background:#fff4e0;border-radius:6px;padding:4px 8px;margin-top:6px}
+.rev-fondo{position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center}
+.rev-caja{background:#fff;width:100%;max-width:560px;max-height:92vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:700px){.rev-fondo{align-items:center}.rev-caja{border-radius:16px}}
+.rev-cab{background:var(--bm-blue);color:#fff;padding:12px 16px;font-weight:800;font-size:17px}
+.rev-cab small{display:block;font-weight:400;font-size:12.5px;opacity:.92;margin-top:2px}
+.rev-cuerpo{overflow-y:auto;padding:10px 16px 14px;flex:1}
+.rev-dato{display:flex;gap:8px;font-size:13.5px;padding:5px 0;border-bottom:1px solid #eef1f6}
+.rev-dato span{flex:0 0 88px;color:#646568}
+.rev-dato b{flex:1;min-width:0;overflow-wrap:anywhere}
+.rev-tit{font-size:12px;font-weight:800;color:var(--bm-blue);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 4px;border-left:3px solid var(--bm-red);padding-left:7px}
+.rev-lin{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #eef1f6}
+.rev-lin .t{flex:1;min-width:0}.rev-lin .d{font-weight:700;font-size:14px;line-height:1.3;overflow-wrap:anywhere}
+.rev-lin .s{font-size:12px;color:#646568;margin-top:2px}
+.rev-lin .q{text-align:right;flex:0 0 auto;max-width:40%}.rev-lin .q b{display:block;font-size:24px;line-height:1.1;color:#1a1a2e}.rev-lin .q small{font-size:12px;color:#646568}
+.rev-lin.ojo{background:#fff4e0;border-radius:8px;padding:8px;border-bottom:0;margin:4px 0}
+.rev-lin .alerta{font-size:12px;font-weight:700;color:#9a5b00;margin-top:4px}
+.rev-aviso{background:#fff4e0;color:#7a4700;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;margin:6px 0}
+.rev-pie{display:flex;gap:10px;padding:12px 16px;border-top:1px solid #eef1f6;background:#fff}
+.rev-pie button{flex:1;min-height:50px;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer}
+.rev-pie .corregir{background:#fff;border:2px solid var(--bm-blue);color:var(--bm-blue)}
+.rev-pie .ok{background:var(--bm-green);border:0;color:#fff}`;
+  document.head.appendChild(st);
+})();
+
+/* ---------- 1. código a mano ---------- */
+const pareceCodigoArt=t=>/^[0-9a-z]{3,8}$/i.test(t) && /\d/.test(t);   // una sola «palabra» de 3 a 8 letras/números, con algún número
+const cod8Art=c=>String(c||'').trim().toUpperCase().padStart(8,'0').slice(-8);
+const buscarArtCatalogo=window.buscarArt;
+window.buscarArt=function buscarArt(){
+  buscarArtCatalogo();
+  const r=document.getElementById('resArt'), q=document.getElementById('buscaArt');
+  if(!r || !q || !clienteSeleccionado || estadoCatalogo!=='ok') return;   // sin catálogo cargado no se ofrece (todo parecería «no encontrado»)
+  const t=q.value.trim();
+  if(!pareceCodigoArt(t) || CAT_IDX[cod8Art(t)]) return;                  // si está en el catálogo, se añade con su «+» de siempre
+  const c=t.toUpperCase();
+  r.insertAdjacentHTML('beforeend','<div class="manual-art"><button type="button" onclick="anadirManualArt(\''+esc(c)+'\')">➕ Añadir el código '+esc(sinCeros(c))+' a mano</button>'+
+    '<small>No está en el catálogo de la app (por ejemplo, artículos <b>bajo pedido</b>). Escribe qué es: transporte comprueba el código y el almacén al cargarlo.</small></div>');
+};
+function hacerManualArt(id, desc){
+  const div=document.getElementById('line-'+id); if(!div) return;
+  div.dataset.manual='1';
+  const d=document.getElementById('desc_'+id);
+  if(d){
+    d.readOnly=false; d.classList.remove('fijo'); d.placeholder='Escribe qué artículo es (obligatorio)';
+    if(desc) d.value=desc;
+    const marca=()=>d.classList.toggle('pide', d.value.trim().length<3);
+    marca(); d.addEventListener('input', marca);
+  }
+  if(!div.querySelector('.aviso-manual')) div.insertAdjacentHTML('beforeend','<div class="aviso-manual">⚠ Código metido a mano, fuera del catálogo de la app: transporte lo comprueba al cargarlo.</div>');
+}
+window.anadirManualArt=function anadirManualArt(cod){
+  const c=cod8Art(cod);
+  if(enPedidoArt(c)) return anadirArt(c);   // ya está en el pedido: lleva a sus unidades, sin duplicar
+  const id=addLine(c, '', '', '');
+  hacerManualArt(id, '');
+  limpiarBuscadorArt();
+  const d=document.getElementById('desc_'+id); if(d) d.focus({preventScroll:true});
+  programarAlmacen();
+};
+
+/* ---------- 2a. «Revisa tu pedido» antes de guardar ---------- */
+const guardarPedidoSinRevisar=window.enviarPedido;
+window.enviarPedido=async function enviarPedido(){
+  if(!validate()) return;
+  mostrarRevisionPedido();
+};
+function textoSelRev(id){ const e=document.getElementById(id); return e&&e.selectedOptions&&e.selectedOptions[0]&&e.value?e.selectedOptions[0].textContent.trim():''; }
+function lineasRevision(){
+  return [...document.querySelectorAll('#articulos-container .articulo-line')].map(div=>{
+    const id=div.id.replace('line-',''), art=f('art_'+id); if(!art) return null;
+    const c=cod8Art(art), uni=Number(f('uni_'+id))||0, dto=Number(f('dto_'+id))||0;
+    const lab=((document.getElementById('uni_'+id)||{}).closest?.('.field')?.querySelector('label')?.textContent||'');
+    let ud=(lab.match(/\(([^)]+)\)/)||[])[1]||'unidades'; if(uni===1 && SING_ART[ud]) ud=SING_ART[ud];
+    const comp=COMPRAS[c], uq=comp?Number(comp.uq)||0:0;
+    const alerta=(uq>0 && (uni>3*uq || uni*3<uq))?'Muy distinto de la última vez: el '+fecArt(comp.uf)+' pidió '+cantArt(uq, comp.ud||(CAT_IDX[c]||{}).ud):'';
+    return {c, d:f('desc_'+id), uni, dto, ud, alerta, manual:div.dataset.manual==='1', grua:div.dataset.auto==='grua'};
+  }).filter(Boolean);
+}
+function mostrarRevisionPedido(){
+  cerrarRevisionPedido();
+  const filas=lineasRevision();
+  const nOjo=filas.filter(x=>x.alerta).length, nMan=filas.filter(x=>x.manual).length;
+  const dir=[f('direccion'), [f('cp'), f('municipio')].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const dato=(k,v)=>v?'<div class="rev-dato"><span>'+k+'</span><b>'+esc(v)+'</b></div>':'';
+  const cobrar=f('cantidad')?' · cobrar '+Number(f('cantidad')).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'';
+  const fondo=document.createElement('div'); fondo.className='rev-fondo'; fondo.id='revPedido';
+  fondo.innerHTML='<div class="rev-caja" role="dialog" aria-modal="true" aria-labelledby="revTit">'+
+    '<div class="rev-cab" id="revTit">Revisa tu pedido<small>Mira bien las cantidades: una vez guardado ya no se puede cambiar.</small></div>'+
+    '<div class="rev-cuerpo">'+
+      (nOjo?'<div class="rev-aviso">⚠ '+(nOjo===1?'Hay 1 cantidad muy distinta':'Hay '+nOjo+' cantidades muy distintas')+' de la última vez que lo compró este cliente. Revísal'+(nOjo===1?'a':'as')+'.</div>':'')+
+      (nMan?'<div class="rev-aviso">⚠ '+(nMan===1?'1 artículo metido':nMan+' artículos metidos')+' a mano: transporte comprueba el código.</div>':'')+
+      dato('Cliente', f('cliente'))+dato('Obra', dir)+dato('Transporte', fecArt(f('fecha_transporte'))+(f('franja')?' · '+f('franja'):''))+
+      dato('Tienda', textoSelRev('tienda'))+dato('Pago', (f('forma_pago')||'')+cobrar)+
+      '<div class="rev-tit">Artículos ('+filas.length+')</div>'+
+      filas.map(x=>'<div class="rev-lin'+(x.alerta?' ojo':'')+'"><div class="t"><div class="d">'+esc(x.grua?'Grúa (automática)':(x.d||'(sin descripción)'))+'</div>'+
+        '<div class="s">'+esc(sinCeros(x.c))+(x.dto?' · dto. '+x.dto.toLocaleString('es-ES')+' %':'')+(x.manual?' · <b style="color:#9a5b00">código a mano</b>':'')+'</div>'+
+        (x.alerta?'<div class="alerta">⚠ '+esc(x.alerta)+'</div>':'')+'</div>'+
+        '<div class="q"><b>'+x.uni.toLocaleString('es-ES',{maximumFractionDigits:2})+'</b><small>'+esc(x.ud)+'</small></div></div>').join('')+
+    '</div>'+
+    '<div class="rev-pie"><button type="button" class="corregir" onclick="cerrarRevisionPedido()">✏ Corregir</button>'+
+      '<button type="button" class="ok" id="revConfirmar" onclick="confirmarRevisionPedido()">✓ Confirmar y guardar</button></div></div>';
+  document.body.appendChild(fondo);
+  document.body.style.overflow='hidden';
+}
+window.cerrarRevisionPedido=function cerrarRevisionPedido(){ const e=document.getElementById('revPedido'); if(e) e.remove(); document.body.style.overflow=''; };
+window.confirmarRevisionPedido=async function confirmarRevisionPedido(){
+  const b=document.getElementById('revConfirmar'); if(b){ if(b.disabled) return; b.disabled=true; }   // sin dobles pulsaciones
+  cerrarRevisionPedido();
+  await guardarPedidoSinRevisar();
+};
 
 (async function init(){
   setFechaAuto();
