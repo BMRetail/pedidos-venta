@@ -1637,7 +1637,7 @@ function haceCuanto(t){ const m=Math.round((Date.now()-t)/60000); return m<1?'ha
 function avisoBorrador(b){
   const prev=document.getElementById('avisoBorr'); if(prev) prev.remove();
   const d=document.createElement('div'); d.className='aviso-borr'; d.id='avisoBorr';
-  d.innerHTML='📝 Tienes un <b>pedido a medias</b>'+(b.razon?' de <b>'+esc(b.razon)+'</b>':'')+' ('+b.lineas.length+(b.lineas.length===1?' línea':' líneas')+', '+haceCuanto(b.t)+').'+
+  d.innerHTML='📝 Tienes un <b>pedido a medias</b>'+(b.razon?' de <b>'+esc(b.razon)+'</b>':'')+' ('+((b.lineas||[]).length?b.lineas.length+(b.lineas.length===1?' línea':' líneas')+', ':'')+haceCuanto(b.t)+').'+
     '<div class="fila"><button type="button" class="prim" id="borrSi">Continuar</button><button type="button" id="borrNo">Descartar</button></div>';
   const ref=document.getElementById('statusBanner'); ref.parentNode.insertBefore(d, ref.nextSibling);
   document.getElementById('borrNo').onclick=()=>{ borrarBorrador(); d.remove(); };
@@ -1668,7 +1668,7 @@ async function aplicarEntradaRutero(){
     if(sel && !sel.disabled && Array.from(sel.options).some(o=>o.value===ENTRADA.comercial)){ sel.value=ENTRADA.comercial; sel.dispatchEvent(new Event('change',{bubbles:true})); }
   }
   const b=leerBorrador();
-  if(b && (b.lineas||[]).length && Date.now()-b.t < 7*86400000){
+  if(b && ((b.lineas||[]).length || b.partner) && Date.now()-b.t < 7*86400000){
     // si llega del Rutero con el mismo cliente del borrador, se recupera directamente
     if(ENTRADA.cliente && b.partner===ENTRADA.cliente){ await recuperarBorrador(b); return; }
     avisoBorrador(b);
@@ -1792,6 +1792,28 @@ function lineasRevision(){
     return {c, d:f('desc_'+id), uni, dto, ud, alerta, manual:div.dataset.manual==='1', grua:div.dataset.auto==='grua'};
   }).filter(Boolean);
 }
+// 21/11/2026: el cuerpo del resumen se usa en la ventana «Revisa tu pedido» y en el paso 4 del pedido por pasos
+function cuerpoRevisionHTML(completo){
+  const filas=lineasRevision();
+  const nOjo=filas.filter(x=>x.alerta).length, nMan=filas.filter(x=>x.manual).length;
+  const dir=[f('direccion'), [f('cp'), f('municipio')].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const dato=(k,v)=>v?'<div class="rev-dato"><span>'+k+'</span><b>'+esc(v)+'</b></div>':'';
+  const cobrar=f('cantidad')?' · cobrar '+Number(f('cantidad')).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'';
+  const radio=n=>{ const r=document.querySelector('input[name="'+n+'"]:checked'); return r?r.value:''; };
+  const descarga=completo?[radio('grua')&&radio('grua')!=='No'?'Grúa '+radio('grua'):'', radio('calle_estrecha')==='Sí'?'Calle estrecha':'',
+    radio('calle_restringida')==='Sí'?'Calle restringida '+(f('restr_desde')||'')+'–'+(f('restr_hasta')||''):'', radio('adelantar')==='Sí'?'Se puede adelantar':''].filter(Boolean).join(' · '):'';
+  return (nOjo?'<div class="rev-aviso">⚠ '+(nOjo===1?'Hay 1 cantidad muy distinta':'Hay '+nOjo+' cantidades muy distintas')+' de la última vez que lo compró este cliente. Revísal'+(nOjo===1?'a':'as')+'.</div>':'')+
+    (nMan?'<div class="rev-aviso">⚠ '+(nMan===1?'1 artículo metido':nMan+' artículos metidos')+' a mano: transporte comprueba el código.</div>':'')+
+    dato('Cliente', f('cliente'))+dato('Obra', dir)+dato('Transporte', fecArt(f('fecha_transporte'))+(f('franja')?' · '+f('franja'):''))+
+    (completo?dato('Contacto', [f('contacto_obra'), f('tlfo1')].filter(Boolean).join(' · '))+dato('Descarga', descarga):'')+
+    dato('Tienda', textoSelRev('tienda'))+dato('Pago', (f('forma_pago')||'')+cobrar)+
+    (completo?dato('Observ.', f('datos_importantes')):'')+
+    '<div class="rev-tit">Artículos ('+filas.length+')</div>'+
+    (filas.length?filas.map(x=>'<div class="rev-lin'+(x.alerta?' ojo':'')+'"><div class="t"><div class="d">'+esc(x.grua?'Grúa (automática)':(x.d||'(sin descripción)'))+'</div>'+
+      '<div class="s">'+esc(sinCeros(x.c))+(x.dto?' · dto. '+x.dto.toLocaleString('es-ES')+' %':'')+(x.manual?' · <b style="color:#9a5b00">código a mano</b>':'')+'</div>'+
+      (x.alerta?'<div class="alerta">⚠ '+esc(x.alerta)+'</div>':'')+'</div>'+
+      '<div class="q"><b>'+x.uni.toLocaleString('es-ES',{maximumFractionDigits:2})+'</b><small>'+esc(x.ud)+'</small></div></div>').join(''):'<div class="hint">Todavía no hay artículos.</div>');
+}
 function mostrarRevisionPedido(){
   cerrarRevisionPedido();
   const filas=lineasRevision();
@@ -1852,6 +1874,243 @@ new MutationObserver(contarOtroArt).observe(document.getElementById('articulos-c
 document.addEventListener('keydown', e=>{
   if(e.key==='Enter' && e.target && /^uni_/.test(e.target.id||'')){ e.preventDefault(); irBuscadorArt(); }
 });
+
+/* ===== 21/11/2026 (Rossy) · PEDIDO POR PASOS · SOLO PRUEBA hasta su visto bueno =====
+   El formulario de siempre repartido en 4 pantallas (se MUEVEN los mismos campos: mismos id, mismos avisos y misma carga a LN):
+     1 Cliente y obra · 2 Artículos · 3 Entrega · 4 Pago y revisar (con el resumen del pedido y «Guardar pedido»).
+   - «Siguiente» comprueba solo los campos de su paso; la barra de arriba deja volver a cualquier paso (y avanzar si lo anterior está completo).
+   - Paso 2: buscador fijo arriba y el artículo nuevo se pone el PRIMERO (debajo del buscador).
+   - Pedido a medias: ahora guarda TODOS los campos (comercial, tienda, contacto, obra, entrega, pago…) y el paso en el que estaba.
+   Va DESPUÉS de codigo_manual_revision.js (usa cuerpoRevisionHTML y guardarPedidoSinRevisar). */
+(function estilosPasos(){
+  const st=document.createElement('style');
+  st.textContent=`
+.pasos-f{display:flex;gap:2px;padding:10px 8px 8px;background:#fff;border-bottom:1px solid #eef1f6}
+.pasos-f button{flex:1;min-width:0;border:0;background:none;padding:2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:#646568;font-size:11.5px;font-weight:700;font-family:inherit}
+.pasos-f i{font-style:normal;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef1f6;color:#646568;font-size:13px;font-weight:800}
+.pasos-f span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pasos-f button.hecho i{background:var(--bm-green);color:#fff}
+.pasos-f button.on{color:var(--bm-blue)}.pasos-f button.on i{background:var(--bm-blue);color:#fff;box-shadow:0 0 0 3px var(--bm-blue-light)}
+.paso-f{display:none}.paso-f.on{display:block}
+.nav-f{position:sticky;bottom:0;z-index:85;display:flex;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #dfe5ef;box-shadow:0 -4px 12px rgba(26,58,107,.08)}
+.nav-f button{min-height:50px;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit}
+.nav-f .atras{flex:0 0 auto;padding:0 16px;background:#fff;border:2px solid var(--bm-blue);color:var(--bm-blue)}
+.nav-f .sig{flex:1;min-width:0;background:var(--bm-blue);border:0;color:#fff;padding:0 10px}
+.nav-f .sig.guardar{background:var(--bm-green)}
+.nav-f .sig:disabled{opacity:.6;cursor:default}
+body.escribiendo-f .nav-f{display:none}
+.limpiar-f{display:block;margin:4px auto 14px;background:none;border:0;color:#646568;text-decoration:underline;font-size:13px;cursor:pointer;font-family:inherit}
+.busc-fijo{position:sticky;top:var(--cab2-f,0px);z-index:80;background:#fff;padding:4px 0 2px}
+.fijo-cli{top:var(--cab-f,0px)!important}
+.otro-art{display:none!important}
+#barraPedido{display:none!important}`;
+  document.head.appendChild(st);
+})();
+
+const PASOS_F=[
+  {t:'Cliente y obra', grupos:[['Pedido',['fecha_auto','comercial','tienda']],['Cliente',['cliente','partner','contacto_ln']],['Obra o dirección de entrega',['direccion','cp']]]},
+  {t:'Artículos'},
+  {t:'Entrega', grupos:[['Cuándo',['fecha_transporte','franja']],['Contacto en obra',['contacto_obra','tlfo1','contacto_alt','tlfo2']],['Descarga',['g_no','ce_si','cr_si','ad_si']]]},
+  {t:'Pago y revisar', grupos:[['Pago',['forma_pago','cantidad']],['Observaciones',['datos_importantes']]]}
+];
+let pasoF=1;
+function bloqueCampoF(id){
+  const el=document.getElementById(id); if(!el) return null;
+  const fl=el.closest('.field'); if(!fl) return null;
+  return fl.parentElement.classList.contains('row-2')?fl.parentElement:fl;   // CP y municipio van juntos
+}
+(function montarPasosF(){
+  const form=document.getElementById('pedidoForm'), busca=document.getElementById('buscaArt'); if(!form || !busca) return;
+  const secLineas=busca.closest('.section'), secAlm=document.getElementById('almacenSec');
+  const viejas=[...form.children].filter(x=>x.classList.contains('section') && x!==secLineas && x!==secAlm);
+  // buscador fijo arriba en el paso 2
+  const ba=secLineas.querySelector('.busc-art'), ra=document.getElementById('resArt');
+  const fijo=document.createElement('div'); fijo.className='busc-fijo'; ba.parentNode.insertBefore(fijo, ba); fijo.appendChild(ba); if(ra) fijo.appendChild(ra);
+  // barra de pasos
+  const barra=document.createElement('div'); barra.className='pasos-f'; barra.id='pasosF';
+  barra.innerHTML=PASOS_F.map((p,i)=>'<button type="button" data-n="'+(i+1)+'" onclick="irPasoF('+(i+1)+')"><i>'+(i+1)+'</i><span>'+p.t+'</span></button>').join('');
+  form.insertBefore(barra, form.firstChild);
+  PASOS_F.forEach((p,i)=>{
+    const n=i+1, cont=document.createElement('div'); cont.className='paso-f'; cont.dataset.paso=n; cont.id='pasoF'+n;
+    if(n===2){ cont.appendChild(secLineas); if(secAlm) cont.appendChild(secAlm); }
+    else p.grupos.forEach(([tit,ids])=>{
+      const sec=document.createElement('div'); sec.className='section';
+      sec.innerHTML='<div class="section-title">'+tit+'</div>';
+      ids.forEach(id=>{ const b=bloqueCampoF(id); if(b) sec.appendChild(b); });
+      cont.appendChild(sec);
+    });
+    if(n===4) cont.insertAdjacentHTML('beforeend','<div class="section"><div class="section-title">Resumen del pedido</div><div class="hint" style="margin-top:-6px;margin-bottom:6px">Mira bien las cantidades: una vez guardado ya no se puede cambiar.</div><div id="resumenPasoF"></div></div>');
+    if(n===1||n===4) cont.insertAdjacentHTML('beforeend','<button type="button" class="limpiar-f" onclick="limpiarFormulario()">Limpiar formulario</button>');
+    form.appendChild(cont);
+  });
+  // las secciones antiguas quedan vacías; si algo no se ha movido, no se pierde: va al paso 4
+  viejas.forEach(s=>{ if(s.querySelector('input,select,textarea')){ console.warn('pedido por pasos: campos sin paso', s); document.getElementById('pasoF4').appendChild(s); } else s.remove(); });
+  const nav=document.createElement('div'); nav.className='nav-f'; nav.id='navF';
+  nav.innerHTML='<button type="button" class="atras" id="navAtrasF" onclick="atrasPasoF()">← Atrás</button><button type="button" class="sig" id="navSigF" onclick="siguientePasoF()">Siguiente →</button>';
+  form.appendChild(nav);
+  // alturas de las barras fijas de arriba (cabecera y cliente) para que no se monten unas sobre otras
+  const cab=document.querySelector('.form-header'), cli=document.getElementById('fijoCliPed');
+  const ajustar=()=>{ const h=cab?cab.offsetHeight:0, hc=(cli && cli.style.display!=='none')?cli.offsetHeight:0;
+    document.documentElement.style.setProperty('--cab-f', h+'px'); document.documentElement.style.setProperty('--cab2-f', (h+hc)+'px'); };
+  ajustar(); window.addEventListener('resize', ajustar);
+  if(window.ResizeObserver){ const ro=new ResizeObserver(ajustar); if(cab) ro.observe(cab); if(cli) ro.observe(cli); }
+  if(cli) new MutationObserver(ajustar).observe(cli, {attributes:true, attributeFilter:['style']});
+  pintarPasoF();
+})();
+
+/* ---------- comprobación por paso ---------- */
+function errF(t){ showStatus(t, false); return false; }
+function okF(){ const b=document.getElementById('statusBanner'); if(b && / err/.test(b.className)) b.className='status-banner'; return true; }
+function faltanF(ids){
+  const m=[];
+  ids.forEach(id=>{ const el=document.getElementById(id); if(!el) return;
+    if(!String(el.value||'').trim()){ el.classList.add('error'); const l=el.closest('.field')?.querySelector('label'); m.push(l?l.textContent.replace('*','').trim():id); }
+    else el.classList.remove('error'); });
+  return m;
+}
+function validarPasoF(k){
+  let m=[];
+  if(k===1){
+    m=faltanF(['comercial','tienda','cliente','partner','direccion','cp','municipio']);
+    const cl=document.getElementById('contacto_ln');
+    if(!f('contacto_ln') || (f('contacto_ln')==='OTRO' && !f('contacto_autorizado'))){ cl.classList.add('error'); m.push('Contacto autorizado'); } else cl.classList.remove('error');
+    if(m.length) return errF('Faltan: '+m.join(', '));
+    if(!clienteSeleccionado) return errF('Elige el cliente de la lista que sale al escribir su nombre o su código.');
+    return okF();
+  }
+  if(k===2){
+    const ls=[...document.querySelectorAll('#articulos-container .articulo-line:not([data-auto="grua"])')];
+    if(!ls.length) return errF('Añade al menos un artículo: búscalo arriba y pulsa +.');
+    let falta=false, sinDesc=false;
+    ls.forEach(d=>{
+      const u=d.querySelector('[id^=uni_]'), mal=!u || !(+u.value>0); if(u) u.classList.toggle('error', mal); if(mal) falta=true;
+      if(d.dataset.manual==='1'){ const e=d.querySelector('[id^=desc_]'), md=!e || e.value.trim().length<3; if(e) e.classList.toggle('error', md); if(md) sinDesc=true; }
+    });
+    if(falta) return errF('Cada artículo necesita sus unidades (mayor que 0).');
+    if(sinDesc) return errF('Escribe qué artículo es en las líneas metidas a mano.');
+    return okF();
+  }
+  if(k===3){
+    m=faltanF(['fecha_transporte','franja','contacto_obra','tlfo1']);
+    [['grua','Grúa'],['calle_estrecha','Calle estrecha'],['calle_restringida','Calle restringida'],['adelantar','Se puede adelantar']].forEach(r=>{ if(!getRadio(r[0])) m.push(r[1]); });
+    if(getRadio('calle_restringida')==='Sí' && (!f('restr_desde') || !f('restr_hasta'))) m.push('Horario de la calle restringida');
+    if(m.length) return errF('Faltan: '+m.join(', '));
+    const t1=document.getElementById('tlfo1'), t2=document.getElementById('tlfo2');
+    if(!validateTel(t1.value)){ t1.classList.add('error'); return errF('El teléfono de contacto debe tener 9 dígitos.'); }
+    if(t2.value && !validateTel(t2.value)){ t2.classList.add('error'); return errF('El teléfono alternativo debe tener 9 dígitos.'); }
+    const ft=document.getElementById('fecha_transporte'), ayer=new Date(); ayer.setDate(ayer.getDate()-1);
+    if(new Date(ft.value+'T00:00:00')<ayer){ ft.classList.add('error'); return errF('La fecha de transporte no puede ser anterior a ayer.'); }
+    return okF();
+  }
+  if(k===4){ m=faltanF(['forma_pago']); if(m.length) return errF('Falta: '+m.join(', ')); return okF(); }
+  return true;
+}
+
+/* ---------- navegación ---------- */
+function pintarPasoF(){
+  document.querySelectorAll('.paso-f').forEach(c=>c.classList.toggle('on', +c.dataset.paso===pasoF));
+  document.querySelectorAll('#pasosF button').forEach(b=>{ const n=+b.dataset.n; b.classList.toggle('on', n===pasoF); b.classList.toggle('hecho', n<pasoF); b.querySelector('i').textContent=n<pasoF?'✓':n; });
+  const at=document.getElementById('navAtrasF'), sg=document.getElementById('navSigF'); if(!at || !sg) return;
+  at.style.display=pasoF>1?'':'none';
+  if(!sg.disabled){ sg.textContent=pasoF<4?'Siguiente: '+PASOS_F[pasoF].t+' →':'✓ Guardar pedido'; sg.classList.toggle('guardar', pasoF===4); }
+  if(pasoF===4) pintarResumenPasoF();
+}
+window.irPasoF=function irPasoF(n, libre){
+  n=Math.max(1, Math.min(4, n));
+  if(!libre && n>pasoF){ for(let k=pasoF; k<n; k++){ if(!validarPasoF(k)){ n=k; break; } } }   // para avanzar, lo anterior tiene que estar completo
+  const cambia=n!==pasoF; pasoF=n; pintarPasoF();
+  if(cambia){ const fm=document.getElementById('pedidoForm'); window.scrollTo({top:Math.max(0, (fm?fm.getBoundingClientRect().top+window.scrollY:0)-80)}); }
+  if(n===2) programarAlmacen();
+  guardarBorradorPronto();
+};
+window.atrasPasoF=function atrasPasoF(){ irPasoF(pasoF-1, true); };
+window.siguientePasoF=function siguientePasoF(){ if(pasoF<4) irPasoF(pasoF+1); else guardarPasoF(); };
+function pintarResumenPasoF(){ const r=document.getElementById('resumenPasoF'); if(r) r.innerHTML=cuerpoRevisionHTML(true); }
+document.addEventListener('input', e=>{ if(pasoF===4 && e.target.closest && e.target.closest('#pasoF4')) pintarResumenPasoF(); });
+document.addEventListener('change', e=>{ if(pasoF===4 && e.target.closest && e.target.closest('#pasoF4')) pintarResumenPasoF(); });
+
+/* ---------- guardar (paso 4): sin ventana, el resumen ya está en pantalla ---------- */
+async function guardarPasoF(){
+  for(let k=1; k<=4; k++){ if(!validarPasoF(k)){ if(k!==pasoF){ irPasoF(k, true); validarPasoF(k); } return; } }
+  if(!validate()) return;   // por si acaso, la comprobación completa de siempre
+  const sg=document.getElementById('navSigF'); if(sg.disabled) return;
+  sg.disabled=true; sg.textContent='Guardando…';
+  try{ await guardarPedidoSinRevisar(); }
+  finally{ sg.disabled=false; pintarPasoF(); }
+}
+window.enviarPedido=async function enviarPedido(){ await guardarPasoF(); };
+// tras guardar (o al limpiar) se vuelve al paso 1
+const limpiarFormularioSinPasos=window.limpiarFormulario;
+window.limpiarFormulario=function limpiarFormulario(skip){
+  const r=limpiarFormularioSinPasos(skip);
+  if(skip || !f('cliente')){ pasoF=1; pintarPasoF(); }
+  return r;
+};
+
+/* ---------- paso 2: el artículo nuevo, el primero (debajo del buscador) ---------- */
+function subirLineaF(id){
+  const c=document.getElementById('articulos-container'), d=document.getElementById('line-'+id);
+  if(c && d && c.firstChild!==d){ c.insertBefore(d, c.firstChild); renumerarLineas(); }
+  if(c) c.scrollTop=0;
+  okF();   // quita el aviso «Añade al menos un artículo» si estaba
+}
+const anadirArtAbajoF=window.anadirArt;
+window.anadirArt=function anadirArt(cod){ const a=window.lineCount; anadirArtAbajoF(cod); if(window.lineCount>a) subirLineaF(window.lineCount); };
+const anadirManualAbajoF=window.anadirManualArt;
+window.anadirManualArt=function anadirManualArt(cod){ const a=window.lineCount; anadirManualAbajoF(cod); if(window.lineCount>a) subirLineaF(window.lineCount); };
+
+/* ---------- móvil: con el teclado abierto se esconde la barra de abajo (si no, tapa el campo) ---------- */
+if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
+  document.addEventListener('focusin', e=>{ const t=e.target; if(t && t.matches && t.matches('input:not([type=radio]):not([type=checkbox]):not([type=button]),textarea')) document.body.classList.add('escribiendo-f'); });
+  document.addEventListener('focusout', ()=>setTimeout(()=>{ const t=document.activeElement; if(!(t && t.matches && t.matches('input:not([type=radio]):not([type=checkbox]),textarea'))) document.body.classList.remove('escribiendo-f'); }, 120));
+}
+
+/* ---------- pedido a medias: TODOS los campos y el paso ---------- */
+const CAMPOS_BORR_F=['comercial','tienda','datos_importantes','contacto_ln','contacto_autorizado','fecha_transporte','franja','direccion','cp','municipio',
+  'contacto_obra','tlfo1','contacto_alt','tlfo2','forma_pago','cantidad','restr_desde','restr_hasta','restr_nota'];
+const RADIOS_BORR_F=['grua','calle_estrecha','calle_restringida','adelantar'];
+guardarBorrador=function(){
+  if(borradorPausado || !perfilActual) return;
+  const lin=lineasActuales();
+  if(!lin.length && !clienteSeleccionado) return;   // sin cliente ni artículos no hay pedido a medias
+  const campos={}; CAMPOS_BORR_F.forEach(id=>{ const e=document.getElementById(id); if(e && e.value) campos[id]=e.value; });
+  const radios={}; RADIOS_BORR_F.forEach(n=>{ const r=document.querySelector('input[name="'+n+'"]:checked'); if(r) radios[n]=r.value; });
+  const b={t:Date.now(), partner:clienteSeleccionado?clienteSeleccionado.partner:'', razon:clienteSeleccionado?clienteSeleccionado.razonSocial:'',
+           visita:ENTRADA.visita||'', lineas:lin, obs:campos.datos_importantes||'', campos, radios, obra:obraElegida?obraElegida.cod:'', paso:pasoF};
+  try{ localStorage.setItem(claveBorrador(), JSON.stringify(b)); }catch(e){}
+};
+function esperarF(cond, ms){ return new Promise(res=>{ const t0=Date.now(); (function mira(){ if(cond() || Date.now()-t0>ms) return res(); setTimeout(mira, 100); })(); }); }
+recuperarBorrador=async function(b){
+  borradorPausado=true;
+  try{
+    const c=b.campos||{}, r=b.radios||{};
+    const pon=id=>{ const e=document.getElementById(id); if(!e || c[id]==null || e.disabled) return false;
+      if(e.tagName==='SELECT' && ![...e.options].some(o=>o.value===c[id])) return false; e.value=c[id]; e.classList.remove('pide'); return true; };
+    await esperarF(()=>document.getElementById('tienda').options.length>1, 5000);
+    ['comercial','tienda'].forEach(id=>{ if(pon(id)) document.getElementById(id).dispatchEvent(new Event('change',{bubbles:true})); });
+    if(b.partner){
+      onClienteSeleccionado({partner:b.partner, razonSocial:b.razon});
+      await esperarF(()=>document.getElementById('contacto_ln').options.length>1, 8000);   // contactos y obras de LN cargados
+    }
+    if(b.visita && !ENTRADA.visita) ENTRADA.visita=b.visita;
+    if(pon('contacto_ln')) cambioContactoLN();
+    pon('contacto_autorizado');
+    const obra=b.obra && obrasCliente.find(o=>o.cod===b.obra);
+    if(obra) elegirObra(itemObra(obra)); else { ['direccion','cp','municipio'].forEach(pon); mostrarObraHint(); }
+    ['datos_importantes','fecha_transporte','franja','contacto_obra','tlfo1','contacto_alt','tlfo2','forma_pago','cantidad'].forEach(pon);
+    if(!c.datos_importantes && b.obs){ const o=document.getElementById('datos_importantes'); if(o) o.value=b.obs; }   // borradores de antes
+    Object.keys(r).forEach(n=>{ const el=[...document.querySelectorAll('input[name="'+n+'"]')].find(x=>x.value===r[n]); if(el) el.checked=true; });
+    cambioGrua(); cambioRestringida(); ['restr_desde','restr_hasta','restr_nota'].forEach(pon); avisoCredito();
+    (b.lineas||[]).forEach(l=>{
+      if(enPedidoArt(l.c)) return;
+      const id=addLine(l.c, l.d, '', l.ud); if(l.m) hacerManualArt(id, l.d);
+      const u=document.getElementById('uni_'+id); if(u){ u.value=l.u; u.classList.toggle('pide',!(+l.u>0)); }
+      const dt=document.getElementById('dto_'+id); if(dt) dt.value=l.dto;
+    });
+    programarAlmacen();
+    if(b.paso) irPasoF(b.paso, true);
+  }finally{ borradorPausado=false; guardarBorrador(); }
+};
 
 (async function init(){
   setFechaAuto();
