@@ -988,11 +988,11 @@ function pintarContactos(){
   if(!clienteSeleccionado){ sel.innerHTML='<option value="">— Elige primero el cliente —</option>'; cambioContactoLN(); return; }
   sel.innerHTML='<option value="">— Seleccionar —</option>'+
     contactosCliente.map(c=>'<option value="'+esc(c.cod)+'">'+esc(c.nombre)+(c.principal?' (principal)':'')+(c.credito?' · ✓ crédito':' · sin crédito')+'</option>').join('')+
-    '<option value="OTRO">Otro (no está en LN)…</option>';
+    '';
   if(contactosCliente.length===1) sel.value=contactosCliente[0].cod;
   document.getElementById('contacto_hint').textContent= contactosCliente.length
-    ? contactosCliente.length+' contacto(s) activo(s) en LN. Si no está el que necesitas, elige «Otro».'
-    : 'Este cliente no tiene contactos activos en LN: elige «Otro» y escribe el nombre.';
+    ? contactosCliente.length+' contacto(s) activo(s) en LN. Si no está el que necesitas, hay que darlo de alta en LN.'
+    : '⚠ Este cliente no tiene contactos activos en LN: hay que dar de alta el contacto en LN para poder pasar el pedido.';
   cambioContactoLN();
 }
 function contactoElegido(){ return contactosCliente.find(c=>c.cod===f('contacto_ln'))||null; }
