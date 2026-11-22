@@ -2526,7 +2526,9 @@ actualizarCadenasF();
   const st=document.createElement('style');
   st.textContent=`
 .paso-f .section{margin:10px 4px;padding:12px 10px}
-.paso-f .articulo-line{padding:8px}
+.paso-f .articulo-line{padding:8px;margin-bottom:8px}
+/* 22/11 (Rossy): tarjetas de artículos al ancho de los demás elementos (sin el recuadro intermedio) */
+.paso-f #articulos-container{border:0;padding:0;background:transparent;border-radius:0}
 .paso-f .articulo-line-top{grid-template-columns:minmax(76px,1.35fr) 1.15fr .8fr 40px;gap:6px}
 .paso-f .articulo-line-top input{padding-left:8px;padding-right:6px}
 #almacenSec{display:none!important}
@@ -2540,7 +2542,10 @@ actualizarCadenasF();
 .exacto-f{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;background:#e6f4ea;color:var(--bm-green-dark);border-radius:9px;padding:0 7px}
 .res-lin-f{display:none;align-items:center;gap:8px;cursor:pointer}
 .articulo-line.plegada-f{padding:8px 10px}
-.articulo-line.plegada-f > *:not(.res-lin-f){display:none!important}
+.articulo-line.plegada-f > *:not(.res-lin-f):not(.nota-stock-f){display:none!important}
+.res-lin-f .stk{flex:0 0 auto;color:#b45f00;font-size:15px;margin-right:-4px}
+.nota-stock-f{font-size:12px;font-weight:700;color:#9a5b00;margin:5px 0 0 2px;line-height:1.35}
+.articulo-line.sinstock-f{border-color:#f0c97a}
 .articulo-line.plegada-f > .res-lin-f{display:flex}
 .res-lin-f .n{flex:0 0 auto;font-size:11.5px;font-weight:800;color:#fff;background:var(--bm-blue);border-radius:9px;padding:1px 8px}
 .linea-auto .res-lin-f .n{background:var(--bm-red)}
@@ -2551,9 +2556,9 @@ actualizarCadenasF();
 .articulo-line.plegada-f.ojo-f{background:#fff4e0;border-color:#f0c97a}
 .rev-dato .cambiar-f,.rev-tit .cambiar-f,.rev-lin .cambiar-f{flex:0 0 auto;margin-left:auto;border:0;background:none;color:var(--bm-blue);font-weight:800;font-size:12.5px;cursor:pointer;padding:2px 0 2px 8px;font-family:inherit;white-space:nowrap}
 .rev-tit{display:flex;align-items:center}
-.paso-f .otro-art button{border:2px solid var(--bm-blue);background:#fff;color:var(--bm-blue)}
-.paso-f .otro-art button:active{background:var(--bm-blue);color:#fff}
-.destaca-f{box-shadow:0 0 0 4px rgba(0,56,128,.25)!important;transform:scale(1.01);transition:box-shadow .2s,transform .2s}
+/* 22/11 (Rossy): el aviso del botón en ROJO BigMat y latiendo; en azul se perdía (todo es azul) */
+@keyframes latidoF{0%,100%{box-shadow:0 0 0 0 rgba(224,0,27,.0)}50%{box-shadow:0 0 0 6px rgba(224,0,27,.45)}}
+.destaca-f{border-color:#E0001B!important;animation:latidoF .8s ease-in-out 3}
 .dir-wrap-f{position:relative}
 .dir-wrap-f input{padding-right:44px;width:100%;box-sizing:border-box}
 .borrar-dir-f{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:18px;background:#eef1f6;color:#646568;font-size:16px;font-weight:800;cursor:pointer}`;
@@ -2574,6 +2579,7 @@ let ultimoToqueF=0;
 ['pointerdown','touchstart','mousedown'].forEach(ev=>document.addEventListener(ev, ()=>{ ultimoToqueF=Date.now(); }, {capture:true, passive:true}));
 document.addEventListener('focusin', e=>{
   const t=e.target, de=e.relatedTarget; if(!t || !t.id || Date.now()-ultimoToqueF<600) return;   // con el dedo: entra normal
+  if(!(window.matchMedia && matchMedia('(pointer:coarse)').matches)) return;   // en el PC el tabulador va a Dto. con normalidad (solo móvil)
   const m=t.id.match(/^(dto|desc)_(\d+)$/);
   const desdeUnidades=m && de && de.id==='uni_'+m[2];
   const alBoton=t.id==='btnOtroArt' && de && /^(uni|dto|desc)_/.test(de.id||'');
@@ -2587,7 +2593,7 @@ function terminarLineaF(){
   document.body.classList.remove('escribiendo-f');
   plegarCompletasF();
   const b=document.getElementById('btnOtroArt'); if(!b) return;
-  b.classList.add('destaca-f'); setTimeout(()=>b.classList.remove('destaca-f'), 2500);
+  // 22/11 (Rossy): sin brillo ni latido; el botón ya se distingue bien
   setTimeout(()=>{   // cuando ya se ha cerrado el teclado: el botón, entero, por encima de la barra de abajo
     const nav=document.getElementById('navF'), alto=(window.visualViewport?visualViewport.height:innerHeight)-(nav?nav.offsetHeight:0)-12;
     const r=b.getBoundingClientRect(); if(r.bottom>alto || r.top<0) window.scrollBy({top:r.bottom-alto, behavior:'smooth'});
@@ -2643,7 +2649,7 @@ function pintarResumenLineaF(d){
   const n=(d.querySelector('.num-linea')||{}).textContent||'';
   const lab=((d.querySelector('[id^=uni_]')||{}).closest?.('.field')?.querySelector('label')?.textContent.match(/\(([^)]+)\)/)||[])[1]||'uds';
   const ojo=!!d.querySelector('.aviso-cant-f');
-  r.innerHTML='<span class="n">'+esc(n.replace('Artículo ','').replace(' · grúa (automática)',' · grúa'))+'</span>'+
+  r.innerHTML=(d.classList.contains('sinstock-f')?'<span class="stk" title="Puede faltar stock">⚠</span>':'')+'<span class="n">'+esc(n.replace('Artículo ','').replace(' · grúa (automática)',' · grúa'))+'</span>'+
     '<span class="t">'+esc(d.dataset.auto==='grua'?'Grúa (automática)':(v('[id^=desc_]')||'(sin descripción)'))+' <small>· '+esc(v('[id^=art_]'))+(+v('[id^=dto_]')>0?' · dto. '+esc(v('[id^=dto_]'))+' %':'')+'</small></span>'+
     '<span class="q">'+(ojo?'⚠ ':'')+esc(v('[id^=uni_]'))+' <small style="font-weight:600;font-size:12px">'+esc(lab)+'</small></span><span class="ed" aria-label="Cambiar">✏</span>';
   d.classList.toggle('ojo-f', ojo);
@@ -2693,13 +2699,18 @@ new MutationObserver(()=>document.querySelectorAll('#articulos-container .articu
 
 /* ---------- 7. aviso de stock (opción b): sin almacén ni tiempo, solo si puede faltar ---------- */
 calcularAlmacen=(function(o){ return async function(){ await o(); pintarAvisoStockF(); }; })(calcularAlmacen);
+// 22/11 (Rossy): el aviso va en CADA artículo sin stock: ⚠ delante del número y una nota pequeña debajo (sin recuadro general)
 function pintarAvisoStockF(){
-  const a=document.getElementById('avisoStockF'); if(!a) return;
-  const fal=(almacenCalculado && !almacenCalculado.completo)?(almacenCalculado.faltan||[]):[];
-  if(!fal.length){ a.style.display='none'; a.textContent=''; return; }
-  const nombre=c=>{ const i=[...document.querySelectorAll('#articulos-container [id^=art_]')].find(x=>x.value===sinCeros(c)); const d=i&&i.closest('.articulo-line').querySelector('[id^=desc_]'); return sinCeros(c)+(d&&d.value?' '+d.value.slice(0,28):''); };
-  a.innerHTML='⚠ Puede faltar stock de '+fal.map(c=>esc(nombre(c))).join(', ')+'. Transporte te confirmará la fecha.';
-  a.style.display='';
+  const a=document.getElementById('avisoStockF'); if(a){ a.style.display='none'; a.textContent=''; }
+  const fal=new Set(((almacenCalculado && !almacenCalculado.completo)?(almacenCalculado.faltan||[]):[]).map(c=>sinCeros(c)));
+  document.querySelectorAll('#articulos-container .articulo-line').forEach(d=>{
+    const c=(d.querySelector('[id^=art_]')||{}).value||'', sin=d.dataset.auto!=='grua' && fal.has(c);
+    d.classList.toggle('sinstock-f', sin);
+    let nt=d.querySelector(':scope > .nota-stock-f');
+    if(sin && !nt){ nt=document.createElement('div'); nt.className='nota-stock-f'; nt.textContent='Puede faltar stock · transporte te confirmará la fecha'; d.appendChild(nt); }
+    if(!sin && nt) nt.remove();
+    if(d.classList.contains('plegada-f')) pintarResumenLineaF(d);
+  });
 }
 
 /* ---------- 9. teclado cerrado con «atrás»: el campo pierde el foco y vuelve la barra de abajo ---------- */
