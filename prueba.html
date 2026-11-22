@@ -2382,13 +2382,23 @@ if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
     if(r) r.style.maxHeight=Math.max(150, alto)+'px';
   };
   if(q){
+    // 22/11 (Rossy, 1.er artículo): Chrome recoloca el campo cuando el teclado TERMINA de abrirse y deshacía la subida
+    // (con líneas ya puestas no se notaba porque el buscador se queda pegado arriba). Se vuelve a subir varias veces
+    // y cada vez que cambia el alto visible (teclado), mientras se esté en el buscador.
+    const subirBuscadorF=()=>{
+      if(document.activeElement!==q) return;
+      const vv=window.visualViewport, off=vv?vv.offsetTop:0, top=q.getBoundingClientRect().top-off;
+      if(Math.abs(top-6)>4) window.scrollBy({top:top-6});
+      ajustarListaF();
+    };
     q.addEventListener('focus', ()=>{
       document.body.classList.add('buscando-f');
-      setTimeout(()=>{ window.scrollTo({top:q.getBoundingClientRect().top+window.scrollY-6}); ajustarListaF(); }, 350);   // cuando ya ha salido el teclado
+      [350,700,1100].forEach(ms=>setTimeout(subirBuscadorF, ms));   // cuando ya ha salido el teclado
     });
+    window._subirBuscadorF=subirBuscadorF;
     q.addEventListener('blur', ()=>setTimeout(()=>{ if(document.activeElement!==q){ document.body.classList.remove('buscando-f'); const r=document.getElementById('resArt'); if(r) r.style.maxHeight=''; } }, 250));
     q.addEventListener('input', ajustarListaF);
-    if(window.visualViewport) visualViewport.addEventListener('resize', ()=>setTimeout(ajustarListaF, 50));
+    if(window.visualViewport) visualViewport.addEventListener('resize', ()=>{ setTimeout(ajustarListaF, 50); setTimeout(subirBuscadorF, 80); setTimeout(subirBuscadorF, 300); });
   }
 }
 
