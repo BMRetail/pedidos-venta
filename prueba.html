@@ -200,7 +200,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <option value="">— Seleccionar —</option>
         </select>
       </div>
-      <div class="field"><label>Datos importantes</label><textarea id="datos_importantes" placeholder="Observaciones o datos relevantes..."></textarea></div>
+      <div class="field"><label>Notas para transporte</label><textarea id="datos_importantes" placeholder="Lo que transporte deba saber (opcional)"></textarea></div>
     </div>
 
     <div class="section">
@@ -211,7 +211,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="autocomplete-list" id="cliente_list"></div>
       </div>
       <div class="field">
-        <label class="required">Partner (código cliente)</label>
+        <label>O busca por código de cliente</label>
         <input type="text" id="partner" placeholder="Escribe para buscar..." autocomplete="off">
         <div class="autocomplete-list" id="partner_list"></div>
       </div>
@@ -220,7 +220,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <select id="contacto_ln" onchange="cambioContactoLN()"><option value="">— Elige primero el cliente —</option></select>
         <input type="text" id="contacto_autorizado" placeholder="Nombre del contacto (no está en LN)" autocomplete="off" style="display:none;margin-top:6px">
         <div class="autocomplete-list" id="contacto_autorizado_list"></div>
-        <div class="hint" id="contacto_hint">Solo salen los contactos activos (no caducados) del cliente en LN.</div>
+        <div class="hint" id="contacto_hint">Quien puede comprar a nombre del cliente. Solo salen los contactos activos del cliente en LN.</div>
       </div>
     </div>
 
@@ -237,7 +237,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <option value="Tarde (14–16 h)">Tarde (14–16 h)</option>
           <option value="Indiferente">Indiferente</option>
         </select>
-        <div class="hint">La franja exacta de LN (001 · 8–11 h, 002 · 11–14 h, 003 · 14–16 h) la elige transporte.</div>
+        <div class="hint">Transporte te confirma la hora exacta.</div>
       </div>
       <div class="field">
         <label class="required">Dirección de entrega</label>
@@ -261,7 +261,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <label class="radio-btn alerta" for="g_7"><input type="radio" name="grua" id="g_7" value="Hasta 7 m" onchange="cambioGrua()"><span>Hasta 7 m</span></label>
           <label class="radio-btn alerta" for="g_13"><input type="radio" name="grua" id="g_13" value="Especial 13 m" onchange="cambioGrua()"><span>Especial 13 m</span></label>
         </div>
-        <div class="hint">Con grúa se añade sola la línea TVGRU15M × 1.</div>
+        <div class="hint">Con grúa se añade sola 1 hora de grúa al pedido.</div>
       </div>
       <div class="field"><label class="required">Calle estrecha</label>
         <div class="radio-group">
@@ -269,7 +269,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <label class="radio-btn" for="ce_no"><input type="radio" name="calle_estrecha" id="ce_no" value="No"><span>No</span></label>
         </div>
       </div>
-      <div class="field"><label class="required">Calle restringida</label>
+      <div class="field"><label class="required">¿Calle con horario limitado?</label>
         <div class="radio-group">
           <label class="radio-btn alerta" for="cr_si"><input type="radio" name="calle_restringida" id="cr_si" value="Sí" onchange="cambioRestringida()"><span>Sí</span></label>
           <label class="radio-btn" for="cr_no"><input type="radio" name="calle_restringida" id="cr_no" value="No" onchange="cambioRestringida()"><span>No</span></label>
@@ -280,7 +280,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <input type="text" id="restr_nota" placeholder="Nota (opcional): p. ej. carga y descarga máx. 30 min" style="margin-top:6px">
         </div>
       </div>
-      <div class="field"><label class="required">Se puede adelantar</label>
+      <div class="field"><label class="required">¿Se puede entregar antes de la fecha?</label>
         <div class="radio-group">
           <label class="radio-btn" for="ad_si"><input type="radio" name="adelantar" id="ad_si" value="Sí"><span>Sí</span></label>
           <label class="radio-btn" for="ad_no"><input type="radio" name="adelantar" id="ad_no" value="No"><span>No</span></label>
@@ -293,7 +293,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <option value="">— Seleccionar —</option>
           <option value="Pagado">Pagado</option>
           <option value="Crédito">Crédito</option>
-          <option value="Paygold">Paygold</option>
+          <option value="Paygold">Paygold (enlace de pago)</option>
           <option value="Cobro destino Efectivo">Cobro destino Efectivo</option>
           <option value="Cobro destino Datáfono">Cobro destino Datáfono</option>
         </select>
@@ -1015,8 +1015,8 @@ function pintarContactos(){
     '';
   if(contactosCliente.length===1) sel.value=contactosCliente[0].cod;
   document.getElementById('contacto_hint').textContent= contactosCliente.length
-    ? contactosCliente.length+' contacto(s) activo(s) en LN. Si no está el que necesitas, hay que darlo de alta en LN.'
-    : '⚠ Este cliente no tiene contactos activos en LN: hay que dar de alta el contacto en LN para poder pasar el pedido.';
+    ? 'Quien puede comprar a nombre del cliente. '+contactosCliente.length+' contacto(s) activo(s) en LN. Si no está, llama a la tienda para que lo den de alta en LN.'
+    : '⚠ Este cliente no tiene contactos activos en LN. Llama a la tienda para que lo den de alta; el pedido queda guardado a medias.';
   cambioContactoLN();
 }
 function contactoElegido(){ return contactosCliente.find(c=>c.cod===f('contacto_ln'))||null; }
@@ -1833,7 +1833,7 @@ function cuerpoRevisionHTML(completo){
   const cobrar=f('cantidad')?' · cobrar '+Number(f('cantidad')).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'';
   const radio=n=>{ const r=document.querySelector('input[name="'+n+'"]:checked'); return r?r.value:''; };
   const descarga=completo?[radio('grua')&&radio('grua')!=='No'?'Grúa '+radio('grua'):'', radio('calle_estrecha')==='Sí'?'Calle estrecha':'',
-    radio('calle_restringida')==='Sí'?'Calle restringida '+(f('restr_desde')||'')+'–'+(f('restr_hasta')||''):'', radio('adelantar')==='Sí'?'Se puede adelantar':''].filter(Boolean).join(' · '):'';
+    radio('calle_restringida')==='Sí'?'Calle con horario '+(f('restr_desde')||'')+'–'+(f('restr_hasta')||''):'', radio('adelantar')==='Sí'?'Se puede entregar antes':''].filter(Boolean).join(' · '):'';
   return (nOjo?'<div class="rev-aviso">⚠ '+(nOjo===1?'Hay 1 cantidad muy distinta':'Hay '+nOjo+' cantidades muy distintas')+' de la última vez que lo compró este cliente. Revísal'+(nOjo===1?'a':'as')+'.</div>':'')+
     (nMan?'<div class="rev-aviso">⚠ '+(nMan===1?'1 artículo metido':nMan+' artículos metidos')+' a mano: transporte comprueba el código.</div>':'')+
     dato('Cliente', f('cliente'))+dato('Obra', dir)+dato('Transporte', fecArt(f('fecha_transporte'))+(f('franja')?' · '+f('franja'):''))+
@@ -1855,7 +1855,7 @@ function mostrarRevisionPedido(){
   const cobrar=f('cantidad')?' · cobrar '+Number(f('cantidad')).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'';
   const fondo=document.createElement('div'); fondo.className='rev-fondo'; fondo.id='revPedido';
   fondo.innerHTML='<div class="rev-caja" role="dialog" aria-modal="true" aria-labelledby="revTit">'+
-    '<div class="rev-cab" id="revTit">Revisa tu pedido<small>Mira bien las cantidades: una vez guardado ya no se puede cambiar.</small></div>'+
+    '<div class="rev-cab" id="revTit">Revisa tu pedido<small>Mira bien las cantidades: una vez guardado ya no se puede cambiar. Si te equivocas, llama a transporte.</small></div>'+
     '<div class="rev-cuerpo">'+
       (nOjo?'<div class="rev-aviso">⚠ '+(nOjo===1?'Hay 1 cantidad muy distinta':'Hay '+nOjo+' cantidades muy distintas')+' de la última vez que lo compró este cliente. Revísal'+(nOjo===1?'a':'as')+'.</div>':'')+
       (nMan?'<div class="rev-aviso">⚠ '+(nMan===1?'1 artículo metido':nMan+' artículos metidos')+' a mano: transporte comprueba el código.</div>':'')+
@@ -1943,7 +1943,7 @@ const PASOS_F=[
   {t:'Cliente y obra', grupos:[['Pedido',['fecha_auto','comercial','tienda']],['Cliente',['cliente','partner','contacto_ln']],['Obra o dirección de entrega',['direccion','cp']]]},
   {t:'Artículos'},
   {t:'Entrega', grupos:[['Cuándo',['fecha_transporte','franja']],['Contacto en obra',['contacto_obra','tlfo1','contacto_alt','tlfo2']],['Descarga',['g_no','ce_si','cr_si','ad_si']]]},
-  {t:'Pago y revisar', grupos:[['Pago',['forma_pago','cantidad']],['Observaciones',['datos_importantes']]]}
+  {t:'Pago y revisar', grupos:[['Pago',['forma_pago','cantidad']],['Notas para transporte',['datos_importantes']]]}
 ];
 let pasoF=1;
 function bloqueCampoF(id){
@@ -1971,7 +1971,7 @@ function bloqueCampoF(id){
       ids.forEach(id=>{ const b=bloqueCampoF(id); if(b) sec.appendChild(b); });
       cont.appendChild(sec);
     });
-    if(n===4) cont.insertAdjacentHTML('beforeend','<div class="section"><div class="section-title">Resumen del pedido</div><div class="hint" style="margin-top:-6px;margin-bottom:6px">Mira bien las cantidades: una vez guardado ya no se puede cambiar.</div><div id="resumenPasoF"></div></div>');
+    if(n===4) cont.insertAdjacentHTML('beforeend','<div class="section"><div class="section-title">Resumen del pedido</div><div class="hint" style="margin-top:-6px;margin-bottom:6px">Mira bien las cantidades: una vez guardado ya no se puede cambiar. Si te equivocas, llama a transporte.</div><div id="resumenPasoF"></div></div>');
     if(n===1||n===4) cont.insertAdjacentHTML('beforeend','<button type="button" class="limpiar-f" onclick="limpiarFormulario()">Limpiar formulario</button>');
     form.appendChild(cont);
   });
@@ -2027,10 +2027,10 @@ function validarPasoF(k){
   }
   if(k===3){
     m=faltanF(['fecha_transporte','franja','contacto_obra','tlfo1']);
-    [['grua','Grúa'],['calle_estrecha','Calle estrecha'],['calle_restringida','Calle restringida'],['adelantar','Se puede adelantar']].forEach(r=>{
+    [['grua','Grúa'],['calle_estrecha','Calle estrecha'],['calle_restringida','Calle con horario limitado'],['adelantar','Se puede entregar antes de la fecha']].forEach(r=>{
       const fl=document.querySelector('input[name="'+r[0]+'"]')?.closest('.field'); if(fl) fl.classList.toggle('falta-f', !getRadio(r[0]));
       if(!getRadio(r[0])) m.push(r[1]); });
-    if(getRadio('calle_restringida')==='Sí' && (!f('restr_desde') || !f('restr_hasta'))) m.push('Horario de la calle restringida');
+    if(getRadio('calle_restringida')==='Sí' && (!f('restr_desde') || !f('restr_hasta'))) m.push('Horario de la calle');
     if(m.length) return errF('Faltan: '+m.join(', '));
     const t1=document.getElementById('tlfo1'), t2=document.getElementById('tlfo2');
     if(!validateTel(t1.value)){ t1.classList.add('error'); return errF('El teléfono de contacto debe tener 9 dígitos.'); }
@@ -2041,9 +2041,7 @@ function validarPasoF(k){
   }
   if(k===4){
     m=faltanF(['forma_pago']); if(m.length) return errF('Falta: '+m.join(', '));
-    const ca=document.getElementById('cantidad');   // 21/11 (Rossy): obligatoria con cobro en destino
-    if(['Cobro destino Efectivo','Cobro destino Datáfono'].includes(f('forma_pago')) && !(+f('cantidad')>0)){ ca.classList.add('error'); return errF('Con cobro en destino pon la cantidad a cobrar: el conductor tiene que saber cuánto cobrar.'); }
-    if(ca) ca.classList.remove('error');
+    // 22/11 (Rossy): la cantidad a cobrar NO se pide (el comercial no sabe el importe: no hay precios en la app)
     return okF();
   }
   return true;
@@ -2249,7 +2247,7 @@ body.escribiendo-f .paso-f.on{padding-bottom:60vh}   /* hueco para poder subir e
 // 21/11 (Rossy): cada bloque en su tarjeta, con icono en el título (antes los bloques se perdían)
 (function iconosTitulosF(){
   const IC={'Cuándo':'📅','Contacto en obra':'👷','Descarga':'🚚','Pedido':'🏢','Cliente':'👤','Obra o dirección de entrega':'📍','Pago':'💳',
-            'Observaciones':'📝','Resumen del pedido':'📋','Líneas de pedido':'🛒','Almacén que sirve (propuesta automática)':'🏭'};
+            'Observaciones':'📝','Notas para transporte':'📝','Resumen del pedido':'📋','Líneas de pedido':'🛒','Almacén que sirve (propuesta automática)':'🏭'};
   document.querySelectorAll('.paso-f .section-title').forEach(t=>{ const k=t.textContent.trim(); if(IC[k] && !t.querySelector('.ic')) t.insertAdjacentHTML('afterbegin','<span class="ic" aria-hidden="true">'+IC[k]+'</span> '); });
 })();
 (function montarExtrasF(){
@@ -2445,7 +2443,7 @@ var CADENAS_F={
      {id:'cr_si', ok:()=>getRadio('calle_restringida')==='No' || (getRadio('calle_restringida')==='Sí' && !!f('restr_desde') && !!f('restr_hasta'))},
      {id:'ad_si', ok:()=>!!getRadio('adelantar')}],
   4:[{id:'forma_pago', ok:()=>!!f('forma_pago')},
-     {id:'cantidad', si:()=>COBRO_F.has(f('forma_pago')), ok:()=>!COBRO_DESTINO_F.has(f('forma_pago')) || +f('cantidad')>0, pide:()=>!f('cantidad')},
+     {id:'cantidad', si:()=>false /* 22/11 (Rossy): no se muestra, el comercial no sabe el importe */, ok:()=>!COBRO_DESTINO_F.has(f('forma_pago')) || +f('cantidad')>0, pide:()=>!f('cantidad')},
      {id:'datos_importantes', ok:()=>true}]
 };
 function bloqueCadenaF(it){ return it.el?document.getElementById(it.id):bloqueCampoF(it.id); }
@@ -2798,6 +2796,93 @@ pintarResumenPasoF=function(){
     b.onclick=()=>{ irPasoF(2,true); setTimeout(()=>abrirLineaF(d), 120); };
     row.appendChild(b); });
 };
+
+/* 22/11/2026 (revisión del agente comercial): si el artículo YA está en el pedido, se despliega su línea y se va a sus unidades
+   (antes se intentaba ir a las unidades de una línea plegada y oculta: parecía que no hacía nada) */
+const anadirArtPlegadoF=window.anadirArt;
+window.anadirArt=function anadirArt(cod){
+  if(enPedidoArt(cod)){
+    const ya=[...document.querySelectorAll('#articulos-container input[id^="art_"]')].find(i=>i.value===cod||i.value===sinCeros(cod));
+    const d=ya && ya.closest('.articulo-line');
+    limpiarBuscadorArt();
+    if(d) abrirLineaF(d);   // sin showStatus: sube la pantalla arriba y taparía la línea
+    return;
+  }
+  anadirArtPlegadoF(cod);
+};
+
+/* ================= DESCARGA SEGÚN LA OBRA (22/11/2026, aprobado por Rossy) =================
+   Al elegir una obra (o una dirección) que ya tiene un pedido anterior del cliente, se rellenan
+   SOLO los campos vacíos con lo de ese último pedido:
+     contacto en obra + teléfono, calle estrecha, calle con horario limitado (+ horas y nota).
+   NO se rellenan: grúa (no siempre hace falta) ni «¿Se puede entregar antes?» (depende de cada pedido).
+   Se avisa en el paso 3: «📋 Como en el último pedido a esta obra (dd/mm). Revísalo.»
+   El dato sale de los pedidos ya guardados (colección pedidos, solo lectura): no se escribe nada nuevo.
+   Si se cambia de obra o se borra la dirección, se quita lo rellenado que el comercial no haya tocado. */
+var PEDIDOS_PREV_F=[], PREF_F=null;
+(function(){
+  const st=document.createElement('style');
+  st.textContent='#prefObraF{background:#eef4ff;border:1px solid #c9d8f2;color:#003880;border-radius:8px;padding:8px 10px;font-size:13px;margin:10px 4px 0}#prefObraF[hidden]{display:none}';
+  document.head.appendChild(st);
+})();
+function normDirF(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+async function cargarPedidosPrevF(partner){
+  PEDIDOS_PREV_F=[];
+  if(!partner) return;
+  try{
+    const snap=await getDocs(query(collection(db,'pedidos'), where('clientePartner','==',partner), orderBy('creadoEn','desc'), limit(20)));
+    snap.forEach(d=>PEDIDOS_PREV_F.push(d.data()));
+  }catch(e){ console.error('pedidos anteriores de la obra', e); return; }
+  // si la obra ya estaba elegida antes de que llegaran los pedidos, se aplica ahora
+  if(!PREF_F && (typeof obraElegida!=='undefined' && obraElegida)) aplicarPrefF({obraLN:obraElegida.cod, direccion:f('direccion')});
+  else if(!PREF_F && f('direccion')) aplicarPrefF({direccion:f('direccion')});
+}
+function buscarPrevF(clave){
+  if(clave.obraLN){ const p=PEDIDOS_PREV_F.find(p=>p.obraLN===clave.obraLN); if(p) return p; }
+  const n=normDirF(clave.direccion); if(!n) return null;
+  return PEDIDOS_PREV_F.find(p=>normDirF(p.direccion)===n) || null;
+}
+function notaPrefF(txt){
+  let n=document.getElementById('prefObraF');
+  const p3=document.getElementById('pasoF3');
+  if(!n && p3){ n=document.createElement('div'); n.id='prefObraF'; p3.insertBefore(n, p3.firstChild); }
+  if(!n) return;
+  n.hidden=!txt; n.textContent=txt||'';
+}
+function quitarPrefF(){
+  if(PREF_F){
+    Object.entries(PREF_F.campos).forEach(([id,v])=>{ const el=document.getElementById(id); if(el && el.value===v) el.value=''; });
+    Object.entries(PREF_F.radios).forEach(([name,v])=>{ const r=document.querySelector('input[name="'+name+'"]:checked'); if(r && r.value===v) r.checked=false; });
+    PREF_F=null;
+    try{ cambioRestringida(); }catch(e){}
+  }
+  notaPrefF('');
+}
+function aplicarPrefF(clave){
+  quitarPrefF();
+  const p=buscarPrevF(clave); if(!p) return;
+  const pref={campos:{}, radios:{}};
+  const ponCampo=(id,v)=>{ const el=document.getElementById(id); if(!el || el.value || !v) return; el.value=v; if(id==='tlfo1'){ try{ formatTel(el); }catch(e){} } pref.campos[id]=el.value; };
+  const ponRadio=(name,v)=>{ if(!v || document.querySelector('input[name="'+name+'"]:checked')) return; const r=document.querySelector('input[name="'+name+'"][value="'+v+'"]'); if(r){ r.checked=true; pref.radios[name]=v; } };
+  ponCampo('contacto_obra', p.contactoObra);
+  ponCampo('tlfo1', p.telefonoObra);
+  ponRadio('calle_estrecha', p.calleEstrecha);
+  ponRadio('calle_restringida', p.calleRestringida?'Sí':'No');
+  if(p.calleRestringida){ ponCampo('restr_desde', p.restringidaDesde); ponCampo('restr_hasta', p.restringidaHasta); ponCampo('restr_nota', p.restringidaNota); }
+  try{ cambioRestringida(); }catch(e){}
+  if(!Object.keys(pref.campos).length && !Object.keys(pref.radios).length) return;
+  PREF_F=pref;
+  let fecha=''; try{ const d=p.creadoEn&&p.creadoEn.toDate?p.creadoEn.toDate():null; if(d) fecha=' ('+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+')'; }catch(e){}
+  notaPrefF('📋 Contacto y calle como en el último pedido a esta obra'+fecha+'. Revísalo.');
+  try{ actualizarCadenasF(); }catch(e){}
+}
+cargarSugerenciasCliente=(function(o){ return function(partner){ quitarPrefF(); cargarPedidosPrevF(partner); return o(partner); }; })(cargarSugerenciasCliente);
+elegirObra=(function(o){ return function(it){ o(it); aplicarPrefF({obraLN:it&&it.obra&&it.obra.cod, direccion:f('direccion')}); }; })(elegirObra);
+seleccionarDireccion=(function(o){ return function(it){ o(it); aplicarPrefF({direccion:f('direccion')}); }; })(seleccionarDireccion);
+window.borrarDireccionF=(function(o){ return function(){ quitarPrefF(); return o.apply(this, arguments); }; })(window.borrarDireccionF);
+document.getElementById('direccion').addEventListener('input', ()=>{ if(PREF_F) quitarPrefF(); });
+const limpiarFormPrevF=window.limpiarFormulario;
+if(limpiarFormPrevF) window.limpiarFormulario=function(){ PREF_F=null; notaPrefF(''); return limpiarFormPrevF.apply(this, arguments); };
 
 (async function init(){
   setFechaAuto();
