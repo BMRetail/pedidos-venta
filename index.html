@@ -129,6 +129,24 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .ok{color:var(--bm-green-dark);font-weight:600}.mal{color:var(--bm-red);font-weight:600}.amb{color:#b45f00}
 .sesion-bar span.salir{font-weight:700;cursor:pointer;text-decoration:underline}
 </style>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/firebase@10.12.0/app/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/firebase@10.12.0/auth/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@firebase/app@0.10.3/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@firebase/firestore@4.6.2/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@firebase/auth@1.7.3/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@firebase/component@0.6.7/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@firebase/logger@0.4.2/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@firebase/util@1.9.6/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/idb@7.1.1/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@firebase/webchannel-wrapper@1.0.0/bloom-blob/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@firebase/webchannel-wrapper@1.0.0/webchannel-blob/+esm">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/tslib@2.6.2/+esm">
+<style>#abriendoF{padding:48px 20px;text-align:center;color:#003880;font-weight:700;font-size:15px}#abriendoF .rueda{width:34px;height:34px;margin:0 auto 14px;border:4px solid #d5dcea;border-top-color:#003880;border-radius:50%;animation:girarF .9s linear infinite}@keyframes girarF{to{transform:rotate(360deg)}}#abriendoF small{display:block;margin-top:8px;font-weight:400;color:#646568}</style>
 </head>
 <body>
 <div class="page">
@@ -145,6 +163,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
   <!-- Acceso con usuario (15/10/2026): mismo usuario que el Rutero Comercial -->
   <div class="sesion-bar" id="sesionBar"><span>Conectado como <b id="sesionNombre"></b></span><span><span class="salir" id="btnBandeja" style="display:none;margin-right:12px" onclick="alternarBandeja()">📦 Bandeja de carga</span><span class="salir" onclick="cerrarSesion()">Cerrar sesión</span></span></div>
+  <div id="abriendoF"><div class="rueda"></div>Abriendo la app…<small id="abriendoTxtF"></small></div>
+  <script>setTimeout(function(){var t=document.getElementById('abriendoTxtF');if(t)t.textContent='Está tardando más de lo normal: suele ser la cobertura. Espera unos segundos.';},12000);</script>
   <div id="loginBox">
     <div class="section">
       <div class="section-title">Acceso</div>
@@ -179,7 +199,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <option value="">— Seleccionar —</option>
         </select>
       </div>
-      <div class="field"><label>Datos importantes</label><textarea id="datos_importantes" placeholder="Observaciones o datos relevantes..."></textarea></div>
+      <div class="field"><label>Notas para transporte</label><textarea id="datos_importantes" placeholder="Lo que transporte deba saber (opcional)"></textarea></div>
     </div>
 
     <div class="section">
@@ -190,7 +210,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="autocomplete-list" id="cliente_list"></div>
       </div>
       <div class="field">
-        <label class="required">Partner (código cliente)</label>
+        <label>O busca por código de cliente</label>
         <input type="text" id="partner" placeholder="Escribe para buscar..." autocomplete="off">
         <div class="autocomplete-list" id="partner_list"></div>
       </div>
@@ -199,7 +219,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <select id="contacto_ln" onchange="cambioContactoLN()"><option value="">— Elige primero el cliente —</option></select>
         <input type="text" id="contacto_autorizado" placeholder="Nombre del contacto (no está en LN)" autocomplete="off" style="display:none;margin-top:6px">
         <div class="autocomplete-list" id="contacto_autorizado_list"></div>
-        <div class="hint" id="contacto_hint">Solo salen los contactos activos (no caducados) del cliente en LN.</div>
+        <div class="hint" id="contacto_hint">Quien puede comprar a nombre del cliente. Solo salen los contactos activos del cliente en LN.</div>
       </div>
     </div>
 
@@ -216,7 +236,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <option value="Tarde (14–16 h)">Tarde (14–16 h)</option>
           <option value="Indiferente">Indiferente</option>
         </select>
-        <div class="hint">La franja exacta de LN (001 · 8–11 h, 002 · 11–14 h, 003 · 14–16 h) la elige transporte.</div>
+        <div class="hint">Transporte te confirma la hora exacta.</div>
       </div>
       <div class="field">
         <label class="required">Dirección de entrega</label>
@@ -240,7 +260,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <label class="radio-btn alerta" for="g_7"><input type="radio" name="grua" id="g_7" value="Hasta 7 m" onchange="cambioGrua()"><span>Hasta 7 m</span></label>
           <label class="radio-btn alerta" for="g_13"><input type="radio" name="grua" id="g_13" value="Especial 13 m" onchange="cambioGrua()"><span>Especial 13 m</span></label>
         </div>
-        <div class="hint">Con grúa se añade sola la línea TVGRU15M × 1.</div>
+        <div class="hint">Con grúa se añade sola 1 hora de grúa al pedido.</div>
       </div>
       <div class="field"><label class="required">Calle estrecha</label>
         <div class="radio-group">
@@ -248,7 +268,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <label class="radio-btn" for="ce_no"><input type="radio" name="calle_estrecha" id="ce_no" value="No"><span>No</span></label>
         </div>
       </div>
-      <div class="field"><label class="required">Calle restringida</label>
+      <div class="field"><label class="required">¿Calle con horario limitado?</label>
         <div class="radio-group">
           <label class="radio-btn alerta" for="cr_si"><input type="radio" name="calle_restringida" id="cr_si" value="Sí" onchange="cambioRestringida()"><span>Sí</span></label>
           <label class="radio-btn" for="cr_no"><input type="radio" name="calle_restringida" id="cr_no" value="No" onchange="cambioRestringida()"><span>No</span></label>
@@ -259,7 +279,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <input type="text" id="restr_nota" placeholder="Nota (opcional): p. ej. carga y descarga máx. 30 min" style="margin-top:6px">
         </div>
       </div>
-      <div class="field"><label class="required">Se puede adelantar</label>
+      <div class="field"><label class="required">¿Se puede entregar antes de la fecha?</label>
         <div class="radio-group">
           <label class="radio-btn" for="ad_si"><input type="radio" name="adelantar" id="ad_si" value="Sí"><span>Sí</span></label>
           <label class="radio-btn" for="ad_no"><input type="radio" name="adelantar" id="ad_no" value="No"><span>No</span></label>
@@ -272,7 +292,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <option value="">— Seleccionar —</option>
           <option value="Pagado">Pagado</option>
           <option value="Crédito">Crédito</option>
-          <option value="Paygold">Paygold</option>
+          <option value="Paygold">Paygold (enlace de pago)</option>
           <option value="Cobro destino Efectivo">Cobro destino Efectivo</option>
           <option value="Cobro destino Datáfono">Cobro destino Datáfono</option>
         </select>
@@ -291,6 +311,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="res-art" id="resArt"></div>
       <div class="hint">Primero sale lo que <b>ya compra este cliente</b>; debajo, el resto del catálogo. Pulsa <b>+</b> y escribe las unidades.</div>
       <div id="articulos-container"></div>
+      <div class="otro-art"><button type="button" id="btnOtroArt" onclick="irBuscadorArt()">➕ Añadir otro artículo</button>
+        <div class="hint">¿Ya está todo? Baja hasta el final y pulsa <b>Guardar pedido</b>: antes de guardar te enseña el resumen.</div></div>
     </div>
 
     <div class="section" id="almacenSec">
@@ -372,7 +394,7 @@ function formatTel(el){let v=el.value.replace(/\D/g,'');if(v.length>9)v=v.slice(
 function validateTel(val){const digits=val.replace(/\D/g,'');return digits.length===9;}
 function f(id){const el=document.getElementById(id);return el?el.value.trim():'';}
 function getRadio(name){const els=document.querySelectorAll('input[name="'+name+'"]:checked');return els.length?els[0].value:'';}
-function setMinDate(){const ft=document.getElementById('fecha_transporte');const y=new Date();y.setDate(y.getDate()-1);ft.min=y.toISOString().split('T')[0];}
+function setMinDate(){const ft=document.getElementById('fecha_transporte');const y=new Date();y.setDate(y.getDate()-1);ft.min=isoLocalF(new Date());}
 function showStatus(msg,ok){const b=document.getElementById('statusBanner');b.textContent=msg;b.className='status-banner show '+(ok?'ok':'err');window.scrollTo({top:0,behavior:'smooth'});}
 window.formatTel=formatTel;
 
@@ -410,7 +432,7 @@ function getLineas(){
   document.querySelectorAll('[id^="line-"]').forEach(function(div){
     const id=div.id.replace('line-','');
     const art=f('art_'+id), uni=f('uni_'+id), dto=f('dto_'+id), desc=f('desc_'+id);
-    if(art||uni) lines.push({articuloCodigo:art.padStart(8,'0').slice(-8), unidades:uni?Number(uni):0, descuentoPct:dto?Number(dto):0, descripcion:desc});
+    if(art||uni) lines.push({articuloCodigo:art.padStart(8,'0').slice(-8), unidades:uni?Number(uni):0, descuentoPct:dto?Number(dto):0, descripcion:desc, ...(div.dataset.manual==='1'?{manual:true}:{})});
   });
   return lines;
 }
@@ -666,9 +688,11 @@ function validate(){
   const tel2=document.getElementById('tlfo2');
   if(tel2.value && !validateTel(tel2.value)){ tel2.classList.add('error'); showStatus('El teléfono alternativo debe tener 9 dígitos.', false); return false; }
   const ft=document.getElementById('fecha_transporte');
-  if(ft.value){ const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1); const selected=new Date(ft.value+'T00:00:00'); if(selected<yesterday){ ft.classList.add('error'); showStatus('La fecha de transporte no puede ser anterior a ayer.', false); return false; } }
+  if(ft.value){ const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1); const malF=fechaTransporteMalF(ft.value); if(malF){ ft.classList.add('error'); showStatus(malF, false); return false; } }
   const lineas=getLineas();
   if(lineas.length===0){ showStatus('Añade al menos una línea de artículo.', false); return false; }
+  const sinDescManual=[...document.querySelectorAll('.articulo-line[data-manual="1"]')].filter(d=>{ const e=d.querySelector('[id^=desc_]'); const mal=!e||e.value.trim().length<3; if(e) e.classList.toggle('error',mal); return mal; });
+  if(sinDescManual.length){ showStatus('Escribe qué artículo es en las líneas metidas a mano (código fuera del catálogo).', false); return false; }
   let faltaCantidad=false;
   document.querySelectorAll('[id^="line-"]').forEach(function(div){
     const id=div.id.replace('line-','');
@@ -731,7 +755,7 @@ function construirCuerpoPedido(p){
   out+='Cantidad a cobrar: '+valorLegible(p.cantidadCobrar)+'\n\n';
   out+='LÍNEAS DE PEDIDO\n';
   (p.lineas||[]).forEach(function(l){
-    out+='- '+(l.articuloCodigo||'')+' | '+(l.descripcion||'')+' | '+(l.unidades||'')+' uds | Dto '+(l.descuentoPct||0)+'%\n';
+    out+='- '+(l.articuloCodigo||'')+' | '+(l.descripcion||'')+' | '+(l.unidades||'')+' uds | Dto '+(l.descuentoPct||0)+'%'+(l.manual?' | CÓDIGO A MANO (fuera del catálogo de la app)':'')+'\n';
   });
   return out;
 }
@@ -746,9 +770,8 @@ function mostrarBotonCorreo(url){
   const b=document.getElementById('statusBanner');
   const link=document.createElement('a');
   link.href=url;
-  link.textContent='📧 Enviar por mail';
-  link.style.cssText='display:inline-block;margin-top:10px;padding:8px 14px;background:var(--bm-green-dark);color:#fff;border-radius:6px;font-weight:700;text-decoration:none';
-  b.appendChild(document.createElement('br'));
+  link.textContent='📧 Enviar a transporte';
+  link.className='btn-correo-f';
   b.appendChild(link);
 }
 
@@ -803,12 +826,20 @@ window.enviarPedido=async function enviarPedido(){
 
   btn.disabled=true; btn.textContent='Guardando...';
   try{
-    const refPed=await addDoc(collection(db,'pedidos'), pedido);
-    await trasGuardarPedido(refPed.id);   // borra el borrador y enlaza la visita (solo con el pedido guardado)
+    const refPed=doc(collection(db,'pedidos'));
+    const escritura=setDoc(refPed, pedido);
+    const conRed=await Promise.race([escritura.then(()=>true), new Promise(r=>setTimeout(()=>r(false), 8000))]);
+    if(conRed) await trasGuardarPedido(refPed.id);   // borra el borrador y enlaza la visita (solo con el pedido guardado)
+    else {
+      trasGuardarPedido(refPed.id).catch(e=>console.error('tras guardar sin red', e));   // borra el borrador ya; la visita se enlaza al volver la señal
+      escritura.then(()=>{ const sb=document.getElementById('statusBanner'), d=document.createElement('div');   // se añade debajo: no quita el botón del correo
+                           d.style.cssText='margin-top:8px;font-weight:800'; d.textContent='✅ El pedido que se guardó sin cobertura ya ha llegado a transporte.'; sb.appendChild(d); sb.classList.add('show'); })
+               .catch(e=>showStatus('❌ El pedido guardado sin cobertura no se ha podido enviar ('+e.message+'). Avisa a transporte.', false));
+    }
     limpiarFormulario(true);
     botonVolverTrasGuardar();
     if(pedido.tiendaEmailDestino){
-      showStatus('Pedido guardado.', true);
+      showStatus(conRed?'✅ Pedido guardado. Ahora envía el correo a transporte:':'📶 Sin cobertura: el pedido queda guardado en el móvil y se enviará solo al volver la señal con la app abierta (o la próxima vez que la abras). NO lo vuelvas a pasar. Envía también el correo a transporte:', true);
       mostrarBotonCorreo(urlCorreoPedido(pedido));
     } else {
       showStatus('Pedido guardado, pero esta tienda todavía no tiene email de transporte configurado. Avisa a transporte manualmente.', false);
@@ -855,7 +886,9 @@ function setFechaAuto(){
 const ADMINS=['rossy.cuenca@bigmat.biz','li.lin@bigmat.biz'];
 let perfilActual=null, mensajeLogin='', datosCargados=false;
 function msgLogin(t, ok){ const el=document.getElementById('login_msg'); el.textContent=t||''; el.style.color= ok ? 'var(--bm-green-dark)' : 'var(--bm-red)'; }
+function quitarAbriendoF(){ var a=document.getElementById('abriendoF'); if(a) a.remove(); }
 function mostrarLogin(){
+  quitarAbriendoF();
   document.getElementById('loginBox').style.display='block';
   document.getElementById('pedidoForm').style.display='none';
   document.getElementById('barraPedido').style.display='none';
@@ -894,6 +927,7 @@ async function alEntrar(user){
     await signOut(auth); return;
   }
   perfilActual=Object.assign({email:email}, p);
+  quitarAbriendoF();
   document.getElementById('loginBox').style.display='none';
   document.getElementById('pedidoForm').style.display='';
   document.getElementById('barraPedido').style.display='';
@@ -975,11 +1009,11 @@ function pintarContactos(){
   if(!clienteSeleccionado){ sel.innerHTML='<option value="">— Elige primero el cliente —</option>'; cambioContactoLN(); return; }
   sel.innerHTML='<option value="">— Seleccionar —</option>'+
     contactosCliente.map(c=>'<option value="'+esc(c.cod)+'">'+esc(c.nombre)+(c.principal?' (principal)':'')+(c.credito?' · ✓ crédito':' · sin crédito')+'</option>').join('')+
-    '<option value="OTRO">Otro (no está en LN)…</option>';
+    '';
   if(contactosCliente.length===1) sel.value=contactosCliente[0].cod;
   document.getElementById('contacto_hint').textContent= contactosCliente.length
-    ? contactosCliente.length+' contacto(s) activo(s) en LN. Si no está el que necesitas, elige «Otro».'
-    : 'Este cliente no tiene contactos activos en LN: elige «Otro» y escribe el nombre.';
+    ? 'Quien puede comprar a nombre del cliente. '+contactosCliente.length+' contacto(s) activo(s) en LN. Si no está, llama a la tienda para que lo den de alta en LN.'
+    : '⚠ Este cliente no tiene contactos activos en LN. Llama a la tienda para que lo den de alta; el pedido queda guardado a medias.';
   cambioContactoLN();
 }
 function contactoElegido(){ return contactosCliente.find(c=>c.cod===f('contacto_ln'))||null; }
@@ -1083,7 +1117,9 @@ async function calcularAlmacen(){
   const sec=document.getElementById('almacenSec');
   if(!enCircuitoTransporte()){ almacenCalculado=null; if(sec) sec.style.display='none'; return; }
   if(sec) sec.style.display='';
-  const lineas=getLineas().filter(l=>l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA && l.unidades>0);
+  const lineas=getLineas().filter(l=>l.articuloCodigo && l.articuloCodigo!==ARTICULO_GRUA && l.unidades>0 && !l.manual);
+  const hayManual=getLineas().some(l=>l.manual);
+  if(!lineas.length && hayManual){ almacenCalculado=null; box.className='alm-sug parcial'; box.textContent='Solo hay artículos metidos a mano (fuera del catálogo): el almacén lo decide transporte.'; return; }
   if(!lineas.length || (!f('cp') && !f('municipio'))){ almacenCalculado=null; box.className='alm-sug'; box.textContent='Elige la obra y los artículos para calcularlo.'; return; }
   box.className='alm-sug'; box.textContent='Calculando…';
   try{
@@ -1098,6 +1134,7 @@ async function calcularAlmacen(){
     if(antes.length) h+='<div class="hint">'+antes.map(x=>esc(NOMBRE_ALM[x.w])+' ('+x.min+' min) no tiene: '+x.faltan.map(cod=>{
       const s=(stock[cod]||{})[x.w]; return esc(sinCeros(cod))+(s&&s[1]>0?' (llegan '+s[1]+(s[2]?' el '+s[2].split('-').reverse().slice(0,2).join('/'):'')+')':''); }).join(', ')).join(' · ')+'</div>';
     if(!r.completo) h+='<div class="hint">Ningún almacén tiene todo: se propone el más cercano con más líneas completas. Lo revisa transporte.</div>';
+    if(hayManual) h+='<div class="hint">⚠ Los artículos metidos a mano no cuentan en este cálculo: el almacén lo confirma transporte.</div>';
     box.className='alm-sug'+(r.completo?'':' parcial'); box.innerHTML=h;
   }catch(e){ console.error(e); almacenCalculado=null; box.textContent='No se pudo calcular el almacén: '+e.message; }
 }
@@ -1185,7 +1222,7 @@ function tarjetaCarga(p, stock){
   const av=avisosPedido(p).map(x=>'<div class="aviso-rojo">⚠ '+esc(x)+'</div>').join('');
   const fecha=p.creadoEn&&p.creadoEn.toDate?p.creadoEn.toDate().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
   const tabla='<table class="tabla-stock"><tr><th>Artículo</th><th>Pide</th>'+ALMACENES_TRANSPORTE.map(a=>'<th>'+esc(a.n)+'</th>').join('')+'</tr>'+
-    lin.map(l=>'<tr><td>'+esc(sinCeros(l.articuloCodigo))+' <small>'+esc((l.descripcion||'').slice(0,28))+'</small></td><td>'+l.unidades+'</td>'+ALMACENES_TRANSPORTE.map(a=>{
+    lin.map(l=>'<tr><td>'+esc(sinCeros(l.articuloCodigo))+' <small>'+esc((l.descripcion||'').slice(0,28))+'</small>'+(l.manual?' <span class="tag rojo">⚠ código a mano</span>':'')+'</td><td>'+l.unidades+'</td>'+ALMACENES_TRANSPORTE.map(a=>{
       const s=(stock[l.articuloCodigo]||{})[a.w]||[0,0,'']; return '<td><span class="'+(s[0]>=l.unidades?'ok':'mal')+'">'+Math.round(s[0]).toLocaleString('es-ES')+'</span>'+(s[1]>0?'<br><small class="amb">+'+Math.round(s[1]).toLocaleString('es-ES')+' en camino'+(s[2]?' ('+s[2].split('-').reverse().slice(0,2).join('/')+')':'')+'</small>':'')+'</td>'; }).join('')+'</tr>').join('')+'</table>';
   return '<div class="ped-carga" id="pc_'+p.id+'">'+
     '<h3>'+esc(p.clienteRazonSocial)+' · '+esc(sinCeros(p.clientePartner))+(p.prueba?' <span class="tag">prueba</span>':'')+antiguedad(p)+'</h3>'+
@@ -1498,7 +1535,8 @@ function filaCatArt(a){
 window.buscarArt=function buscarArt(){
   const r=document.getElementById('resArt'); if(!r) return;
   if(!clienteSeleccionado){ r.innerHTML='<div class="vacio">Elige primero el cliente.</div>'; return; }
-  const pal=toksArt(document.getElementById('buscaArt').value);
+  const pal=toksArt(document.getElementById('buscaArt').value).map(p=>/^\d+$/.test(p)?p.replace(/^0+(?=.)/,''):p);
+  const q0=pal.length===1 && /^\d+$/.test(pal[0]) ? pal[0] : '';
   const compras=comprasCliente.map(datosArt);
   const aviso=estadoCatalogo==='cargando'?'<div class="vacio">Cargando el catálogo…</div>':estadoCatalogo==='error'?'<div class="vacio">No se pudo cargar el catálogo. Revisa la conexión y vuelve a entrar.</div>':'';
   if(!pal.length){
@@ -1507,9 +1545,10 @@ window.buscarArt=function buscarArt(){
       compras.slice(0,10).map(filaCompraArt).join('')+'<div class="vacio">Escribe para buscar entre todo lo que compra y en el catálogo.</div>'+aviso;
     return;
   }
-  const comp=compras.filter(a=>pal.every(p=>encajaArt(p,a.t))).sort((x,y)=>(y.act-x.act));
+  const comp=compras.filter(a=>pal.every(p=>encajaArt(p,a.t))).sort((x,y)=>((sinCeros(y.c)===q0)-(sinCeros(x.c)===q0)) || (y.act-x.act));
   const yaC=new Set(comp.map(a=>a.c));
   const cat=(catalogoApp||[]).filter(a=>!yaC.has(a.c) && pal.every(p=>encajaArt(p,a.t)));
+  if(q0) cat.sort((x,y)=>(sinCeros(y.c)===q0)-(sinCeros(x.c)===q0));
   // 14/11/2026 (Rossy): el bloque «Ya lo compra» solo sale si hay resultados que ya ha comprado
   r.innerHTML=(comp.length?'<div class="grupo"><span>⭐ Ya lo compra este cliente</span><span>'+comp.length+'</span></div>'+comp.slice(0,20).map(filaCompraArt).join(''):'')+
     '<div class="grupo cat"><span>📦 '+(comp.length?'Resto del catálogo':'Catálogo')+'</span><span>'+cat.length.toLocaleString('es-ES')+'</span></div>'+
@@ -1606,7 +1645,7 @@ function borrarBorrador(){ try{ localStorage.removeItem(claveBorrador()); }catch
 function lineasActuales(){
   return [...document.querySelectorAll('#articulos-container .articulo-line')].filter(l=>l.dataset.auto!=='grua').map(l=>({
     c:(l.querySelector('[id^=art_]')||{}).value||'', d:(l.querySelector('[id^=desc_]')||{}).value||'',
-    u:(l.querySelector('[id^=uni_]')||{}).value||'', dto:(l.querySelector('[id^=dto_]')||{}).value||'',
+    m:l.dataset.manual==='1', u:(l.querySelector('[id^=uni_]')||{}).value||'', dto:(l.querySelector('[id^=dto_]')||{}).value||'',
     ud:((l.querySelector('[id^=uni_]')||{}).closest?.('.field')?.querySelector('label')?.textContent.match(/\(([^)]+)\)/)||[])[1]||''
   })).filter(x=>x.c);
 }
@@ -1627,7 +1666,7 @@ function haceCuanto(t){ const m=Math.round((Date.now()-t)/60000); return m<1?'ha
 function avisoBorrador(b){
   const prev=document.getElementById('avisoBorr'); if(prev) prev.remove();
   const d=document.createElement('div'); d.className='aviso-borr'; d.id='avisoBorr';
-  d.innerHTML='📝 Tienes un <b>pedido a medias</b>'+(b.razon?' de <b>'+esc(b.razon)+'</b>':'')+' ('+b.lineas.length+(b.lineas.length===1?' línea':' líneas')+', '+haceCuanto(b.t)+').'+
+  d.innerHTML='📝 Tienes un <b>pedido a medias</b>'+(b.razon?' de <b>'+esc(b.razon)+'</b>':'')+' ('+((b.lineas||[]).length?b.lineas.length+(b.lineas.length===1?' línea':' líneas')+', ':'')+haceCuanto(b.t)+').'+
     '<div class="fila"><button type="button" class="prim" id="borrSi">Continuar</button><button type="button" id="borrNo">Descartar</button></div>';
   const ref=document.getElementById('statusBanner'); ref.parentNode.insertBefore(d, ref.nextSibling);
   document.getElementById('borrNo').onclick=()=>{ borrarBorrador(); d.remove(); };
@@ -1641,7 +1680,7 @@ async function recuperarBorrador(b){
     if(b.obs){ const o=document.getElementById('datos_importantes'); if(o) o.value=b.obs; }
     (b.lineas||[]).forEach(l=>{
       if(enPedidoArt(l.c)) return;
-      const id=addLine(l.c, l.d, '', l.ud);
+      const id=addLine(l.c, l.d, '', l.ud); if(l.m) hacerManualArt(id, l.d);
       const u=document.getElementById('uni_'+id); if(u){ u.value=l.u; u.classList.toggle('pide',!(+l.u>0)); }
       const dt=document.getElementById('dto_'+id); if(dt) dt.value=l.dto;
     });
@@ -1658,7 +1697,7 @@ async function aplicarEntradaRutero(){
     if(sel && !sel.disabled && Array.from(sel.options).some(o=>o.value===ENTRADA.comercial)){ sel.value=ENTRADA.comercial; sel.dispatchEvent(new Event('change',{bubbles:true})); }
   }
   const b=leerBorrador();
-  if(b && (b.lineas||[]).length && Date.now()-b.t < 7*86400000){
+  if(b && ((b.lineas||[]).length || b.partner) && Date.now()-b.t < 7*86400000){
     // si llega del Rutero con el mismo cliente del borrador, se recupera directamente
     if(ENTRADA.cliente && b.partner===ENTRADA.cliente){ await recuperarBorrador(b); return; }
     avisoBorrador(b);
@@ -1687,6 +1726,1170 @@ function botonVolverTrasGuardar(){
   const b=document.createElement('button'); b.type='button'; b.className='volver-rutero'; b.id='volverTras'; b.textContent='← Volver al Rutero'; b.onclick=volverAlRutero;
   const ref=document.getElementById('statusBanner'); ref.parentNode.insertBefore(b, ref.nextSibling);
 }
+
+/* ===== 18/11/2026 (Rossy) · SOLO PRUEBA hasta su visto bueno =====
+   1) CÓDIGO A MANO: si lo buscado es un código que no está en el catálogo de la app (p. ej. artículos PED, bajo pedido),
+      sale «➕ Añadir el código X a mano». La línea lleva descripción obligatoria escrita por el comercial y la marca
+      «código a mano»: no cuenta en el cálculo del almacén y transporte la comprueba al cargarla (si el código no existe, LN la rechaza).
+   2a) «REVISA TU PEDIDO»: al pulsar «Guardar pedido» sale un resumen (cliente, obra, fecha, tienda, pago y líneas con las
+      unidades bien grandes) con «✏ Corregir» o «✓ Confirmar y guardar». Si una cantidad es más del triple o menos de un tercio
+      de la última vez que el cliente compró ese artículo (comprasLN), la línea sale en ámbar.
+   Usa lo ya definido en el módulo: esc, sinCeros, f, validate, getLineas, addLine, anadirArt, enPedidoArt, limpiarBuscadorArt,
+   programarAlmacen, CAT_IDX, COMPRAS, estadoCatalogo, clienteSeleccionado, fecArt, cantArt, SING_ART. */
+(function estilosManualRevision(){
+  const st=document.createElement('style');
+  st.textContent=`
+.res-art .manual-art{padding:10px 12px;border-top:1px dashed #d5dcea;background:#fffaf0}
+.res-art .manual-art button{width:100%;min-height:44px;border:1px dashed #9a5b00;border-radius:10px;background:#fff4e0;color:#7a4700;font-weight:800;font-size:14px;cursor:pointer}
+.res-art .manual-art small{display:block;margin-top:6px;color:#646568;font-size:12px;line-height:1.45}
+.articulo-line .aviso-manual{font-size:12px;font-weight:700;color:#9a5b00;background:#fff4e0;border-radius:6px;padding:4px 8px;margin-top:6px}
+.rev-fondo{position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:900;display:flex;align-items:flex-end;justify-content:center}
+.rev-caja{background:#fff;width:100%;max-width:560px;max-height:92vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:700px){.rev-fondo{align-items:center}.rev-caja{border-radius:16px}}
+.rev-cab{background:var(--bm-blue);color:#fff;padding:12px 16px;font-weight:800;font-size:17px}
+.rev-cab small{display:block;font-weight:400;font-size:12.5px;opacity:.92;margin-top:2px}
+.rev-cuerpo{overflow-y:auto;padding:10px 16px 14px;flex:1}
+.rev-dato{display:flex;gap:8px;font-size:13.5px;padding:5px 0;border-bottom:1px solid #eef1f6}
+.rev-dato span{flex:0 0 88px;color:#646568}
+.rev-dato b{flex:1;min-width:0;overflow-wrap:anywhere}
+.rev-tit{font-size:12px;font-weight:800;color:var(--bm-blue);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 4px;border-left:3px solid var(--bm-red);padding-left:7px}
+.rev-lin{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #eef1f6}
+.rev-lin .t{flex:1;min-width:0}.rev-lin .d{font-weight:700;font-size:14px;line-height:1.3;overflow-wrap:anywhere}
+.rev-lin .s{font-size:12px;color:#646568;margin-top:2px}
+.rev-lin .q{text-align:right;flex:0 0 auto;max-width:40%}.rev-lin .q b{display:block;font-size:24px;line-height:1.1;color:#1a1a2e}.rev-lin .q small{font-size:12px;color:#646568}
+.rev-lin.ojo{background:#fff4e0;border-radius:8px;padding:8px;border-bottom:0;margin:4px 0}
+.rev-lin .alerta{font-size:12px;font-weight:700;color:#9a5b00;margin-top:4px}
+.rev-aviso{background:#fff4e0;color:#7a4700;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;margin:6px 0}
+.rev-pie{display:flex;gap:10px;padding:12px 16px;border-top:1px solid #eef1f6;background:#fff}
+.rev-pie button{flex:1;min-height:50px;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer}
+.rev-pie .corregir{background:#fff;border:2px solid var(--bm-blue);color:var(--bm-blue)}
+.rev-pie .ok{background:var(--bm-green);border:0;color:#fff}`;
+  document.head.appendChild(st);
+})();
+
+/* ---------- 1. código a mano ---------- */
+const pareceCodigoArt=t=>/^[0-9a-z]{3,8}$/i.test(t) && /\d/.test(t);   // una sola «palabra» de 3 a 8 letras/números, con algún número
+const cod8Art=c=>String(c||'').trim().toUpperCase().padStart(8,'0').slice(-8);
+const buscarArtCatalogo=window.buscarArt;
+window.buscarArt=function buscarArt(){
+  buscarArtCatalogo();
+  const r=document.getElementById('resArt'), q=document.getElementById('buscaArt');
+  if(!r || !q || !clienteSeleccionado || estadoCatalogo!=='ok') return;   // sin catálogo cargado no se ofrece (todo parecería «no encontrado»)
+  const t=q.value.trim();
+  if(!pareceCodigoArt(t) || CAT_IDX[cod8Art(t)]) return;                  // si está en el catálogo, se añade con su «+» de siempre
+  const c=t.toUpperCase();
+  r.insertAdjacentHTML('beforeend','<div class="manual-art"><button type="button" onclick="anadirManualArt(\''+esc(c)+'\')">➕ Añadir el código '+esc(sinCeros(c))+' a mano</button>'+
+    '<small>No está en el catálogo de la app (por ejemplo, artículos <b>bajo pedido</b>). Escribe qué es: transporte comprueba el código y el almacén al cargarlo.</small></div>');
+};
+function hacerManualArt(id, desc){
+  const div=document.getElementById('line-'+id); if(!div) return;
+  div.dataset.manual='1';
+  const d=document.getElementById('desc_'+id);
+  if(d){
+    d.readOnly=false; d.classList.remove('fijo'); d.placeholder='Escribe qué artículo es (obligatorio)';
+    if(desc) d.value=desc;
+    const marca=()=>d.classList.toggle('pide', d.value.trim().length<3);
+    marca(); d.addEventListener('input', marca);
+  }
+  if(!div.querySelector('.aviso-manual')) div.insertAdjacentHTML('beforeend','<div class="aviso-manual">⚠ Código metido a mano, fuera del catálogo de la app: transporte lo comprueba al cargarlo.</div>');
+}
+window.anadirManualArt=function anadirManualArt(cod){
+  const c=cod8Art(cod);
+  if(enPedidoArt(c)) return anadirArt(c);   // ya está en el pedido: lleva a sus unidades, sin duplicar
+  const id=addLine(c, '', '', '');
+  hacerManualArt(id, '');
+  limpiarBuscadorArt();
+  const d=document.getElementById('desc_'+id); if(d) d.focus({preventScroll:true});
+  programarAlmacen();
+};
+
+/* ---------- 2a. «Revisa tu pedido» antes de guardar ---------- */
+const guardarPedidoSinRevisar=window.enviarPedido;
+window.enviarPedido=async function enviarPedido(){
+  if(!validate()) return;
+  mostrarRevisionPedido();
+};
+function textoSelRev(id){ const e=document.getElementById(id); return e&&e.selectedOptions&&e.selectedOptions[0]&&e.value?e.selectedOptions[0].textContent.trim():''; }
+function lineasRevision(){
+  return [...document.querySelectorAll('#articulos-container .articulo-line')].map(div=>{
+    const id=div.id.replace('line-',''), art=f('art_'+id); if(!art) return null;
+    const c=cod8Art(art), uni=Number(f('uni_'+id))||0, dto=Number(f('dto_'+id))||0;
+    const lab=((document.getElementById('uni_'+id)||{}).closest?.('.field')?.querySelector('label')?.textContent||'');
+    let ud=(lab.match(/\(([^)]+)\)/)||[])[1]||'unidades'; if(uni===1 && SING_ART[ud]) ud=SING_ART[ud];
+    const comp=COMPRAS[c], uq=comp?Number(comp.uq)||0:0;
+    const alerta=(uq>0 && (uni>3*uq || uni*3<uq))?'Muy distinto de la última vez: el '+fecArt(comp.uf)+' pidió '+cantArt(uq, comp.ud||(CAT_IDX[c]||{}).ud):'';
+    return {c, d:f('desc_'+id), uni, dto, ud, alerta, manual:div.dataset.manual==='1', grua:div.dataset.auto==='grua'};
+  }).filter(Boolean);
+}
+// 21/11/2026: el cuerpo del resumen se usa en la ventana «Revisa tu pedido» y en el paso 4 del pedido por pasos
+function cuerpoRevisionHTML(completo){
+  const filas=lineasRevision();
+  const nOjo=filas.filter(x=>x.alerta).length, nMan=filas.filter(x=>x.manual).length;
+  const dir=[f('direccion'), [f('cp'), f('municipio')].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const dato=(k,v)=>v?'<div class="rev-dato"><span>'+k+'</span><b>'+esc(v)+'</b></div>':'';
+  const cobrar=f('cantidad')?' · cobrar '+Number(f('cantidad')).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'';
+  const radio=n=>{ const r=document.querySelector('input[name="'+n+'"]:checked'); return r?r.value:''; };
+  const descarga=completo?[radio('grua')&&radio('grua')!=='No'?'Grúa '+radio('grua'):'', radio('calle_estrecha')==='Sí'?'Calle estrecha':'',
+    radio('calle_restringida')==='Sí'?'Calle con horario '+(f('restr_desde')||'')+'–'+(f('restr_hasta')||''):'', radio('adelantar')==='Sí'?'Se puede entregar antes':''].filter(Boolean).join(' · '):'';
+  return (nOjo?'<div class="rev-aviso">⚠ '+(nOjo===1?'Hay 1 cantidad muy distinta':'Hay '+nOjo+' cantidades muy distintas')+' de la última vez que lo compró este cliente. Revísal'+(nOjo===1?'a':'as')+'.</div>':'')+
+    (nMan?'<div class="rev-aviso">⚠ '+(nMan===1?'1 artículo metido':nMan+' artículos metidos')+' a mano: transporte comprueba el código.</div>':'')+
+    dato('Cliente', f('cliente'))+dato('Obra', dir)+dato('Transporte', fecArt(f('fecha_transporte'))+(f('franja')?' · '+f('franja'):''))+
+    (completo?dato('Contacto', [f('contacto_obra'), f('tlfo1')].filter(Boolean).join(' · '))+dato('Descarga', descarga):'')+
+    dato('Tienda', textoSelRev('tienda'))+dato('Pago', (f('forma_pago')||'')+cobrar)+
+    (completo?dato('Observ.', f('datos_importantes')):'')+
+    '<div class="rev-tit">Artículos ('+filas.length+')</div>'+
+    (filas.length?filas.map(x=>'<div class="rev-lin'+(x.alerta?' ojo':'')+'"><div class="t"><div class="d">'+esc(x.grua?'Grúa (automática)':(x.d||'(sin descripción)'))+'</div>'+
+      '<div class="s">'+esc(sinCeros(x.c))+(x.dto?' · dto. '+x.dto.toLocaleString('es-ES')+' %':'')+(x.manual?' · <b style="color:#9a5b00">código a mano</b>':'')+'</div>'+
+      (x.alerta?'<div class="alerta">⚠ '+esc(x.alerta)+'</div>':'')+'</div>'+
+      '<div class="q"><b>'+x.uni.toLocaleString('es-ES',{maximumFractionDigits:2})+'</b><small>'+esc(x.ud)+'</small></div></div>').join(''):'<div class="hint">Todavía no hay artículos.</div>');
+}
+function mostrarRevisionPedido(){
+  cerrarRevisionPedido();
+  const filas=lineasRevision();
+  const nOjo=filas.filter(x=>x.alerta).length, nMan=filas.filter(x=>x.manual).length;
+  const dir=[f('direccion'), [f('cp'), f('municipio')].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const dato=(k,v)=>v?'<div class="rev-dato"><span>'+k+'</span><b>'+esc(v)+'</b></div>':'';
+  const cobrar=f('cantidad')?' · cobrar '+Number(f('cantidad')).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'';
+  const fondo=document.createElement('div'); fondo.className='rev-fondo'; fondo.id='revPedido';
+  fondo.innerHTML='<div class="rev-caja" role="dialog" aria-modal="true" aria-labelledby="revTit">'+
+    '<div class="rev-cab" id="revTit">Revisa tu pedido<small>Mira bien las cantidades: una vez guardado ya no se puede cambiar. Si te equivocas, llama a transporte.</small></div>'+
+    '<div class="rev-cuerpo">'+
+      (nOjo?'<div class="rev-aviso">⚠ '+(nOjo===1?'Hay 1 cantidad muy distinta':'Hay '+nOjo+' cantidades muy distintas')+' de la última vez que lo compró este cliente. Revísal'+(nOjo===1?'a':'as')+'.</div>':'')+
+      (nMan?'<div class="rev-aviso">⚠ '+(nMan===1?'1 artículo metido':nMan+' artículos metidos')+' a mano: transporte comprueba el código.</div>':'')+
+      dato('Cliente', f('cliente'))+dato('Obra', dir)+dato('Transporte', fecArt(f('fecha_transporte'))+(f('franja')?' · '+f('franja'):''))+
+      dato('Tienda', textoSelRev('tienda'))+dato('Pago', (f('forma_pago')||'')+cobrar)+
+      '<div class="rev-tit">Artículos ('+filas.length+')</div>'+
+      filas.map(x=>'<div class="rev-lin'+(x.alerta?' ojo':'')+'"><div class="t"><div class="d">'+esc(x.grua?'Grúa (automática)':(x.d||'(sin descripción)'))+'</div>'+
+        '<div class="s">'+esc(sinCeros(x.c))+(x.dto?' · dto. '+x.dto.toLocaleString('es-ES')+' %':'')+(x.manual?' · <b style="color:#9a5b00">código a mano</b>':'')+'</div>'+
+        (x.alerta?'<div class="alerta">⚠ '+esc(x.alerta)+'</div>':'')+'</div>'+
+        '<div class="q"><b>'+x.uni.toLocaleString('es-ES',{maximumFractionDigits:2})+'</b><small>'+esc(x.ud)+'</small></div></div>').join('')+
+    '</div>'+
+    '<div class="rev-pie"><button type="button" class="corregir" onclick="cerrarRevisionPedido()">✏ Corregir</button>'+
+      '<button type="button" class="ok" id="revConfirmar" onclick="confirmarRevisionPedido()">✓ Confirmar y guardar</button></div></div>';
+  document.body.appendChild(fondo);
+  document.body.style.overflow='hidden';
+}
+window.cerrarRevisionPedido=function cerrarRevisionPedido(){ const e=document.getElementById('revPedido'); if(e) e.remove(); document.body.style.overflow=''; };
+window.confirmarRevisionPedido=async function confirmarRevisionPedido(){
+  const b=document.getElementById('revConfirmar'); if(b){ if(b.disabled) return; b.disabled=true; }   // sin dobles pulsaciones
+  cerrarRevisionPedido();
+  await guardarPedidoSinRevisar();
+};
+
+/* ---------- 21/11/2026 (Rossy): tras escribir las unidades no se veía cómo seguir ----------
+   Debajo de las líneas: «➕ Añadir otro artículo» (lleva al buscador) y el recordatorio de «Guardar pedido».
+   «Intro»/«Ir» en las unidades también lleva al buscador. */
+(function estilosOtroArt(){
+  const st=document.createElement('style');
+  st.textContent=`
+.otro-art{margin-top:10px}
+.otro-art button{width:100%;min-height:48px;border:2px dashed var(--bm-blue);border-radius:12px;background:var(--bm-blue-light);color:var(--bm-blue);font-weight:800;font-size:15px;cursor:pointer}
+.otro-art .hint{margin-top:6px;text-align:center}
+#articulos-container:empty + .otro-art{display:none}`;
+  document.head.appendChild(st);
+})();
+window.irBuscadorArt=function irBuscadorArt(){
+  const q=document.getElementById('buscaArt'); if(!q) return;
+  q.value=''; q.focus({preventScroll:true});
+  q.scrollIntoView({block:'center', behavior:'smooth'});
+  buscarArt();
+};
+function contarOtroArt(){
+  const b=document.getElementById('btnOtroArt'); if(!b) return;
+  const n=document.querySelectorAll('#articulos-container .articulo-line:not([data-auto="grua"])').length;
+  b.textContent='➕ Añadir otro artículo'+(n?' (llevas '+n+')':'');
+}
+new MutationObserver(contarOtroArt).observe(document.getElementById('articulos-container'), {childList:true});
+document.addEventListener('keydown', e=>{
+  if((e.key==='Enter' || e.keyCode===13) && e.target && /^uni_/.test(e.target.id||'')){ e.preventDefault(); irBuscadorArt(); }
+});
+
+/* ===== 21/11/2026 (Rossy) · PEDIDO POR PASOS · SOLO PRUEBA hasta su visto bueno =====
+   El formulario de siempre repartido en 4 pantallas (se MUEVEN los mismos campos: mismos id, mismos avisos y misma carga a LN):
+     1 Cliente y obra · 2 Artículos · 3 Entrega · 4 Pago y revisar (con el resumen del pedido y «Guardar pedido»).
+   - «Siguiente» comprueba solo los campos de su paso; la barra de arriba deja volver a cualquier paso (y avanzar si lo anterior está completo).
+   - Paso 2: buscador fijo arriba y el artículo nuevo se pone el PRIMERO (debajo del buscador).
+   - Pedido a medias: ahora guarda TODOS los campos (comercial, tienda, contacto, obra, entrega, pago…) y el paso en el que estaba.
+   Va DESPUÉS de codigo_manual_revision.js (usa cuerpoRevisionHTML y guardarPedidoSinRevisar). */
+(function estilosPasos(){
+  const st=document.createElement('style');
+  st.textContent=`
+.pasos-f{display:flex;gap:2px;padding:10px 8px 8px;background:#fff;border-bottom:1px solid #eef1f6}
+.pasos-f button{flex:1;min-width:0;border:0;background:none;padding:2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:#646568;font-size:11.5px;font-weight:700;font-family:inherit}
+.pasos-f i{font-style:normal;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef1f6;color:#646568;font-size:13px;font-weight:800}
+.pasos-f span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pasos-f button.hecho i{background:var(--bm-green);color:#fff}
+.pasos-f button.on{color:var(--bm-blue)}.pasos-f button.on i{background:var(--bm-blue);color:#fff;box-shadow:0 0 0 3px var(--bm-blue-light)}
+.paso-f{display:none}.paso-f.on{display:block}
+.nav-f{position:sticky;bottom:0;z-index:85;display:flex;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #dfe5ef;box-shadow:0 -4px 12px rgba(26,58,107,.08)}
+.nav-f button{min-height:50px;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit}
+.nav-f .atras{flex:0 0 auto;padding:0 16px;background:#fff;border:2px solid var(--bm-blue);color:var(--bm-blue)}
+.nav-f .sig{flex:1;min-width:0;background:var(--bm-blue);border:0;color:#fff;padding:0 10px}
+.nav-f .sig.guardar{background:var(--bm-green)}
+.nav-f .sig:disabled{opacity:.6;cursor:default}
+body.escribiendo-f .nav-f{display:none}
+.limpiar-f{display:block;margin:4px auto 14px;background:none;border:0;color:#646568;text-decoration:underline;font-size:13px;cursor:pointer;font-family:inherit}
+.busc-fijo{position:sticky;top:var(--cab2-f,0px);z-index:80;background:#fff;padding:4px 0 2px}
+.fijo-cli{top:var(--cab-f,0px)!important}
+.otro-art .hint{display:none}
+#barraPedido{display:none!important}`;
+  document.head.appendChild(st);
+})();
+
+const PASOS_F=[
+  {t:'Cliente y obra', grupos:[['Pedido',['fecha_auto','comercial','tienda']],['Cliente',['cliente','partner','contacto_ln']],['Obra o dirección de entrega',['direccion','cp']]]},
+  {t:'Artículos'},
+  {t:'Entrega', grupos:[['Cuándo',['fecha_transporte','franja']],['Contacto en obra',['contacto_obra','tlfo1','contacto_alt','tlfo2']],['Descarga',['g_no','ce_si','cr_si','ad_si']]]},
+  {t:'Pago y revisar', grupos:[['Pago',['forma_pago','cantidad']],['Notas para transporte',['datos_importantes']]]}
+];
+let pasoF=1;
+function bloqueCampoF(id){
+  const el=document.getElementById(id); if(!el) return null;
+  const fl=el.closest('.field'); if(!fl) return null;
+  return fl.parentElement.classList.contains('row-2')?fl.parentElement:fl;   // CP y municipio van juntos
+}
+(function montarPasosF(){
+  const form=document.getElementById('pedidoForm'), busca=document.getElementById('buscaArt'); if(!form || !busca) return;
+  const secLineas=busca.closest('.section'), secAlm=document.getElementById('almacenSec');
+  const viejas=[...form.children].filter(x=>x.classList.contains('section') && x!==secLineas && x!==secAlm);
+  // buscador fijo arriba en el paso 2
+  const ba=secLineas.querySelector('.busc-art'), ra=document.getElementById('resArt');
+  const fijo=document.createElement('div'); fijo.className='busc-fijo'; ba.parentNode.insertBefore(fijo, ba); fijo.appendChild(ba); if(ra) fijo.appendChild(ra);
+  // barra de pasos
+  const barra=document.createElement('div'); barra.className='pasos-f'; barra.id='pasosF';
+  barra.innerHTML=PASOS_F.map((p,i)=>'<button type="button" data-n="'+(i+1)+'" onclick="irPasoF('+(i+1)+')"><i>'+(i+1)+'</i><span>'+p.t+'</span></button>').join('');
+  form.insertBefore(barra, form.firstChild);
+  PASOS_F.forEach((p,i)=>{
+    const n=i+1, cont=document.createElement('div'); cont.className='paso-f'; cont.dataset.paso=n; cont.id='pasoF'+n;
+    if(n===2){ cont.appendChild(secLineas); if(secAlm) cont.appendChild(secAlm); }
+    else p.grupos.forEach(([tit,ids])=>{
+      const sec=document.createElement('div'); sec.className='section';
+      sec.innerHTML='<div class="section-title">'+tit+'</div>';
+      ids.forEach(id=>{ const b=bloqueCampoF(id); if(b) sec.appendChild(b); });
+      cont.appendChild(sec);
+    });
+    if(n===4) cont.insertAdjacentHTML('beforeend','<div class="section"><div class="section-title">Resumen del pedido</div><div class="hint" style="margin-top:-6px;margin-bottom:6px">Mira bien las cantidades: una vez guardado ya no se puede cambiar. Si te equivocas, llama a transporte.</div><div id="resumenPasoF"></div></div>');
+    if(n===1||n===4) cont.insertAdjacentHTML('beforeend','<button type="button" class="limpiar-f" onclick="limpiarFormulario()">Limpiar formulario</button>');
+    form.appendChild(cont);
+  });
+  // las secciones antiguas quedan vacías; si algo no se ha movido, no se pierde: va al paso 4
+  viejas.forEach(s=>{ if(s.querySelector('input,select,textarea')){ console.warn('pedido por pasos: campos sin paso', s); document.getElementById('pasoF4').appendChild(s); } else s.remove(); });
+  const nav=document.createElement('div'); nav.className='nav-f'; nav.id='navF';
+  nav.innerHTML='<button type="button" class="atras" id="navAtrasF" onclick="atrasPasoF()">← Atrás</button><button type="button" class="sig" id="navSigF" onclick="siguientePasoF()">Siguiente →</button>';
+  form.appendChild(nav);
+  // alturas de las barras fijas de arriba (cabecera y cliente) para que no se monten unas sobre otras
+  const cab=document.querySelector('.form-header'), cli=document.getElementById('fijoCliPed');
+  const ajustar=()=>{ const h=cab?cab.offsetHeight:0, hc=(cli && cli.style.display!=='none')?cli.offsetHeight:0;
+    document.documentElement.style.setProperty('--cab-f', h+'px'); document.documentElement.style.setProperty('--cab2-f', (h+hc)+'px'); };
+  ajustar(); window.addEventListener('resize', ajustar);
+  if(window.ResizeObserver){ const ro=new ResizeObserver(ajustar); if(cab) ro.observe(cab); if(cli) ro.observe(cli); }
+  if(cli) new MutationObserver(ajustar).observe(cli, {attributes:true, attributeFilter:['style']});
+  pintarPasoF();
+})();
+
+/* ---------- comprobación por paso ---------- */
+function errF(t){ showStatus(t, false);
+  // 21/11: la pantalla va al primer campo que falta (antes subía arriba y había que buscarlo)
+  setTimeout(()=>{ const e=document.querySelector('#pasoF'+pasoF+' .error, #pasoF'+pasoF+' .falta-f'); const dst=e && (e.offsetParent!==null ? e : e.closest('.field')); if(dst && dst.offsetParent!==null) dst.scrollIntoView({block:'center', behavior:'smooth'}); }, 60);
+  return false; }
+function okF(){ const b=document.getElementById('statusBanner'); if(b && / err/.test(b.className)) b.className='status-banner'; return true; }
+function faltanF(ids){
+  const m=[];
+  ids.forEach(id=>{ const el=document.getElementById(id); if(!el) return;
+    if(!String(el.value||'').trim()){ el.classList.add('error'); const l=el.closest('.field')?.querySelector('label'); m.push(l?l.textContent.replace('*','').trim():id); }
+    else el.classList.remove('error'); });
+  return m;
+}
+function validarPasoF(k){
+  let m=[];
+  if(k===1){
+    m=faltanF(['comercial','tienda','cliente','partner','direccion','cp','municipio']);
+    const cl=document.getElementById('contacto_ln');
+    if(!f('contacto_ln') || (f('contacto_ln')==='OTRO' && !f('contacto_autorizado'))){ cl.classList.add('error'); m.push('Contacto autorizado'); } else cl.classList.remove('error');
+    if(m.length) return errF('Faltan: '+m.join(', '));
+    if(!clienteSeleccionado) return errF('Elige el cliente de la lista que sale al escribir su nombre o su código.');
+    return okF();
+  }
+  if(k===2){
+    const ls=[...document.querySelectorAll('#articulos-container .articulo-line:not([data-auto="grua"])')];
+    if(!ls.length) return errF('Añade al menos un artículo: búscalo arriba y pulsa +.');
+    let falta=false, sinDesc=false;
+    ls.forEach(d=>{
+      const u=d.querySelector('[id^=uni_]'), mal=!u || !(+u.value>0); if(u) u.classList.toggle('error', mal); if(mal) falta=true;
+      if(d.dataset.manual==='1'){ const e=d.querySelector('[id^=desc_]'), md=!e || e.value.trim().length<3; if(e) e.classList.toggle('error', md); if(md) sinDesc=true; }
+    });
+    if(falta) return errF('Cada artículo necesita sus unidades (mayor que 0).');
+    if(sinDesc) return errF('Escribe qué artículo es en las líneas metidas a mano.');
+    return okF();
+  }
+  if(k===3){
+    m=faltanF(['fecha_transporte','franja','contacto_obra','tlfo1']);
+    [['grua','Grúa'],['calle_estrecha','Calle estrecha'],['calle_restringida','Calle con horario limitado'],['adelantar','Se puede entregar antes de la fecha']].forEach(r=>{
+      const fl=document.querySelector('input[name="'+r[0]+'"]')?.closest('.field'); if(fl) fl.classList.toggle('falta-f', !getRadio(r[0]));
+      if(!getRadio(r[0])) m.push(r[1]); });
+    if(getRadio('calle_restringida')==='Sí' && (!f('restr_desde') || !f('restr_hasta'))) m.push('Horario de la calle');
+    if(m.length) return errF('Faltan: '+m.join(', '));
+    const t1=document.getElementById('tlfo1'), t2=document.getElementById('tlfo2');
+    if(!validateTel(t1.value)){ t1.classList.add('error'); return errF('El teléfono de contacto debe tener 9 dígitos.'); }
+    if(t2.value && !validateTel(t2.value)){ t2.classList.add('error'); return errF('El teléfono alternativo debe tener 9 dígitos.'); }
+    const ft=document.getElementById('fecha_transporte'), malF=fechaTransporteMalF(ft.value);
+    if(malF){ ft.classList.add('error'); return errF(malF); }   // 21/11 (Rossy): mínimo hoy y solo de lunes a viernes
+    return okF();
+  }
+  if(k===4){
+    m=faltanF(['forma_pago']); if(m.length) return errF('Falta: '+m.join(', '));
+    // 22/11 (Rossy): la cantidad a cobrar NO se pide (el comercial no sabe el importe: no hay precios en la app)
+    return okF();
+  }
+  return true;
+}
+
+/* ---------- navegación ---------- */
+function pintarPasoF(){
+  document.querySelectorAll('.paso-f').forEach(c=>c.classList.toggle('on', +c.dataset.paso===pasoF));
+  document.querySelectorAll('#pasosF button').forEach(b=>{ const n=+b.dataset.n; b.classList.toggle('on', n===pasoF); b.classList.toggle('hecho', n<pasoF); b.querySelector('i').textContent=n<pasoF?'✓':n; });
+  const at=document.getElementById('navAtrasF'), sg=document.getElementById('navSigF'); if(!at || !sg) return;
+  at.style.display=pasoF>1?'':'none';
+  if(!sg.disabled){ sg.textContent=pasoF<4?'Siguiente: '+PASOS_F[pasoF].t+' →':'✓ Guardar pedido'; sg.classList.toggle('guardar', pasoF===4); }
+  if(pasoF===4) pintarResumenPasoF();
+  actualizarCadenasF();
+}
+window.irPasoF=function irPasoF(n, libre){
+  n=Math.max(1, Math.min(4, n));
+  if(!libre && n>pasoF){ for(let k=pasoF; k<n; k++){ if(!validarPasoF(k)){ n=k; break; } } }   // para avanzar, lo anterior tiene que estar completo
+  const cambia=n!==pasoF; pasoF=n; pintarPasoF();
+  if(cambia){ const fm=document.getElementById('pedidoForm'); window.scrollTo({top:Math.max(0, (fm?fm.getBoundingClientRect().top+window.scrollY:0)-80)}); }
+  if(n===2) programarAlmacen();
+  guardarBorradorPronto();
+};
+window.atrasPasoF=function atrasPasoF(){ irPasoF(pasoF-1, true); };
+window.siguientePasoF=function siguientePasoF(){ if(pasoF<4) irPasoF(pasoF+1); else guardarPasoF(); };
+function pintarResumenPasoF(){ const r=document.getElementById('resumenPasoF'); if(r) r.innerHTML=cuerpoRevisionHTML(true); }
+document.addEventListener('input', e=>{ if(pasoF===4 && e.target.closest && e.target.closest('#pasoF4')) pintarResumenPasoF(); });
+document.addEventListener('change', e=>{ if(pasoF===4 && e.target.closest && e.target.closest('#pasoF4')) pintarResumenPasoF(); });
+
+/* ---------- guardar (paso 4): sin ventana, el resumen ya está en pantalla ---------- */
+async function guardarPasoF(){
+  for(let k=1; k<=4; k++){ if(!validarPasoF(k)){ if(k!==pasoF){ irPasoF(k, true); validarPasoF(k); } return; } }
+  if(!validate()) return;   // por si acaso, la comprobación completa de siempre
+  const sg=document.getElementById('navSigF'); if(sg.disabled) return;
+  try{ localStorage.setItem(claveTiendaF(), f('tienda')); }catch(e){}   // la próxima vez sale ya esta tienda
+  sg.disabled=true; sg.textContent='Guardando…';
+  try{ await guardarPedidoSinRevisar(); }
+  finally{ sg.disabled=false; pintarPasoF(); }
+}
+window.enviarPedido=async function enviarPedido(){ await guardarPasoF(); };
+// tras guardar (o al limpiar) se vuelve al paso 1
+const limpiarFormularioSinPasos=window.limpiarFormulario;
+window.limpiarFormulario=function limpiarFormulario(skip){
+  const r=limpiarFormularioSinPasos(skip);
+  if(skip || !f('cliente')){ pasoF=1; pintarPasoF(); setTimeout(ponerTiendaRecordadaF, 50); }
+  return r;
+};
+
+/* ---------- paso 2: el artículo nuevo, el primero (debajo del buscador) ---------- */
+function subirLineaF(id){
+  const c=document.getElementById('articulos-container'), d=document.getElementById('line-'+id);
+  if(c && d && c.firstChild!==d){ c.insertBefore(d, c.firstChild); renumerarLineas(); }
+  if(c) c.scrollTop=0;
+  okF();   // quita el aviso «Añade al menos un artículo» si estaba
+  // 22/11 (Rossy): la línea nueva se coloca justo debajo del buscador fijo, con las unidades a la vista
+  if(d) setTimeout(()=>{ const bf=document.querySelector('#pasoF2 .busc-fijo'), lim=(bf?bf.getBoundingClientRect().bottom:0)+8;
+    window.scrollBy({top:d.getBoundingClientRect().top-lim, behavior:'smooth'}); }, 60);
+}
+const anadirArtAbajoF=window.anadirArt;
+window.anadirArt=function anadirArt(cod){ const a=window.lineCount; anadirArtAbajoF(cod); if(window.lineCount>a) subirLineaF(window.lineCount); };
+const anadirManualAbajoF=window.anadirManualArt;
+window.anadirManualArt=function anadirManualArt(cod){ const a=window.lineCount; anadirManualAbajoF(cod); if(window.lineCount>a) subirLineaF(window.lineCount); };
+
+/* ---------- móvil: con el teclado abierto se esconde la barra de abajo (si no, tapa el campo) ---------- */
+if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
+  document.addEventListener('focusin', e=>{ const t=e.target; if(t && t.matches && t.matches('input:not([type=radio]):not([type=checkbox]):not([type=button]),textarea')) document.body.classList.add('escribiendo-f'); });
+  document.addEventListener('focusout', ()=>setTimeout(()=>{ const t=document.activeElement; if(!(t && t.matches && t.matches('input:not([type=radio]):not([type=checkbox]),textarea'))) document.body.classList.remove('escribiendo-f'); }, 120));
+}
+
+/* ---------- pedido a medias: TODOS los campos y el paso ---------- */
+const CAMPOS_BORR_F=['comercial','tienda','datos_importantes','contacto_ln','contacto_autorizado','fecha_transporte','franja','direccion','cp','municipio',
+  'contacto_obra','tlfo1','contacto_alt','tlfo2','forma_pago','cantidad','restr_desde','restr_hasta','restr_nota'];
+const RADIOS_BORR_F=['grua','calle_estrecha','calle_restringida','adelantar'];
+guardarBorrador=function(){
+  if(borradorPausado || !perfilActual) return;
+  const lin=lineasActuales();
+  const campos={}; CAMPOS_BORR_F.forEach(id=>{ const e=document.getElementById(id); if(e && e.value) campos[id]=e.value; });
+  const radios={}; RADIOS_BORR_F.forEach(n=>{ const r=document.querySelector('input[name="'+n+'"]:checked'); if(r) radios[n]=r.value; });
+  // 21/11 (2.ª revisión): solo con el cliente (o lo que se pone solo: comercial, tienda, contacto único) NO es un pedido a medias.
+  // Así, entrar desde el Rutero con otro cliente no pisa el pedido a medias que hubiera.
+  const tocado=Object.keys(campos).some(k=>!['comercial','tienda','contacto_ln'].includes(k)) || Object.keys(radios).length>0;
+  if(!lin.length && !tocado) return;
+  const b={t:Date.now(), partner:clienteSeleccionado?clienteSeleccionado.partner:'', razon:clienteSeleccionado?clienteSeleccionado.razonSocial:'',
+           visita:ENTRADA.visita||'', lineas:lin, obs:campos.datos_importantes||'', campos, radios, obra:obraElegida?obraElegida.cod:'', paso:pasoF};
+  try{ localStorage.setItem(claveBorrador(), JSON.stringify(b)); }catch(e){}
+};
+function esperarF(cond, ms){ return new Promise(res=>{ const t0=Date.now(); (function mira(){ if(cond() || Date.now()-t0>ms) return res(); setTimeout(mira, 100); })(); }); }
+recuperarBorrador=async function(b){
+  borradorPausado=true;
+  try{
+    const c=b.campos||{}, r=b.radios||{};
+    const pon=id=>{ const e=document.getElementById(id); if(!e || c[id]==null || e.disabled) return false;
+      if(e.tagName==='SELECT' && ![...e.options].some(o=>o.value===c[id])) return false; e.value=c[id]; e.classList.remove('pide'); return true; };
+    await esperarF(()=>document.getElementById('tienda').options.length>1, 5000);
+    ['comercial','tienda'].forEach(id=>{ if(pon(id)) document.getElementById(id).dispatchEvent(new Event('change',{bubbles:true})); });
+    if(b.partner){
+      onClienteSeleccionado({partner:b.partner, razonSocial:b.razon});
+      await esperarF(()=>document.getElementById('contacto_ln').options.length>1, 8000);   // contactos y obras de LN cargados
+    }
+    // la visita va con SU cliente: si se recupera el pedido a medias de otro cliente, no se queda con la visita del Rutero de ahora
+    if(b.partner && ENTRADA.cliente && b.partner!==ENTRADA.cliente) ENTRADA.visita=b.visita||'';
+    else if(b.visita && !ENTRADA.visita) ENTRADA.visita=b.visita;
+    if(pon('contacto_ln')) cambioContactoLN();
+    pon('contacto_autorizado');
+    const obra=b.obra && obrasCliente.find(o=>o.cod===b.obra);
+    if(obra) elegirObra(itemObra(obra)); else { ['direccion','cp','municipio'].forEach(pon); mostrarObraHint(); }
+    ['datos_importantes','fecha_transporte','franja','contacto_obra','tlfo1','contacto_alt','tlfo2','forma_pago','cantidad'].forEach(pon);
+    if(!c.datos_importantes && b.obs){ const o=document.getElementById('datos_importantes'); if(o) o.value=b.obs; }   // borradores de antes
+    Object.keys(r).forEach(n=>{ const el=[...document.querySelectorAll('input[name="'+n+'"]')].find(x=>x.value===r[n]); if(el) el.checked=true; });
+    cambioGrua(); cambioRestringida(); ['restr_desde','restr_hasta','restr_nota'].forEach(pon); avisoCredito();
+    (b.lineas||[]).forEach(l=>{
+      if(enPedidoArt(l.c)) return;
+      const id=addLine(l.c, l.d, '', l.ud); if(l.m) hacerManualArt(id, l.d);
+      const u=document.getElementById('uni_'+id); if(u){ u.value=l.u; u.classList.toggle('pide',!(+l.u>0)); }
+      const dt=document.getElementById('dto_'+id); if(dt) dt.value=l.dto;
+    });
+    if(c.contacto_alt || c.tlfo2){ const a=document.getElementById('altF'); if(a) a.open=true; }
+    // fecha de transporte que ya no vale (pasada, fin de semana o festivo): se quita y se avisa
+    const ftB=document.getElementById('fecha_transporte'), malB=ftB && ftB.value ? fechaTransporteMalF(ftB.value) : '';
+    if(malB) ftB.value='';
+    actualizarCadenasF();
+    programarAlmacen();
+    if(b.paso) irPasoF(b.paso, true);
+    if(malB) showStatus('La fecha de transporte del pedido a medias ya no vale ('+malB.replace(/\.$/,'').toLowerCase()+'). Elige otra en el paso 3.', false);
+  }finally{ borradorPausado=false; guardarBorrador(); }
+};
+
+/* ===== 21/11/2026 (Rossy, tras la revisión «comercial de calle») · SOLO PRUEBA · va DESPUÉS de pedido_por_pasos.js =====
+   - UNA PREGUNTA TRAS OTRA: en los pasos 1, 3 y 4 la siguiente pregunta aparece al contestar la anterior y la pantalla baja sola.
+     Nada viene marcado de antemano (no se puede «poner todo normal» de un toque).
+     En los campos de texto no se salta mientras se escribe: se pasa con «Intro/Siguiente» del teclado (el teléfono, al tener 9 cifras).
+   - Cantidad a cobrar: solo con cobro en destino (efectivo o datáfono) y Paygold.
+   - Contacto alternativo plegado («+ Añadir contacto alternativo»). «Fecha del pedido» oculta (se pone sola).
+   - Fecha de transporte con botones (próximo día laborable, el siguiente, otro día).
+   - Tienda vendedora: la última que usó el comercial en este móvil.
+   - Unidades con decimales (m³, t, kg, m, m², l): teclado con coma.
+   - Aviso ámbar de cantidad también en el paso 2, al escribir las unidades. */
+function isoLocalF(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// 21/11/2026 (Rossy): la fecha de transporte, como mínimo HOY y solo de LUNES A VIERNES (transporte no reparte en fin de semana)
+// Festivos: nacionales + Comunidad de Madrid (Decreto 75/2025 para 2026 y Decreto 82/2026 para 2027, BOCM); los locales de cada municipio no.
+// Mismos que el objetivo diario del Rutero. La app de pedidos es solo para tiendas de Madrid.
+const FESTIVOS_TRANSPORTE_F=new Set(['2026-01-01','2026-01-06','2026-04-02','2026-04-03','2026-05-01','2026-05-02','2026-08-15','2026-10-12','2026-11-02','2026-12-07','2026-12-08','2026-12-25',
+  '2027-01-01','2027-01-06','2027-03-19','2027-03-25','2027-03-26','2027-05-01','2027-08-16','2027-10-12','2027-11-01','2027-12-06','2027-12-08','2027-12-25']);
+function esLaborableF(iso){ const dw=new Date(iso+'T12:00:00').getDay(); return dw!==0 && dw!==6 && !FESTIVOS_TRANSPORTE_F.has(iso); }
+function fechaTransporteMalF(v){
+  if(!v) return '';
+  if(v<isoLocalF(new Date())) return 'La fecha de transporte no puede ser anterior a hoy.';
+  if(FESTIVOS_TRANSPORTE_F.has(v)) return 'Ese día es festivo y transporte no reparte: elige un día laborable.';
+  if(!esLaborableF(v)) return 'Transporte reparte de lunes a viernes: elige un día laborable.';
+  return '';
+}
+(function estilosCadenasF(){
+  const st=document.createElement('style');
+  st.textContent=`
+.oculto-f{display:none!important}
+.field.falta-f{outline:2px solid var(--bm-red);outline-offset:4px;border-radius:8px}
+.fechas-f{display:flex;gap:6px;margin-bottom:8px}
+.fechas-f button{flex:1;min-width:0;min-height:48px;border:1.5px solid var(--bm-blue-mid);border-radius:10px;background:#fff;color:var(--bm-blue);font-weight:800;font-size:14px;cursor:pointer;line-height:1.2;font-family:inherit;padding:4px}
+.fechas-f button small{display:block;font-weight:600;font-size:11.5px;color:#646568;margin-top:2px}
+.fechas-f button.on{background:var(--bm-blue);border-color:var(--bm-blue);color:#fff}.fechas-f button.on small{color:#dfe7f5}
+details.alt-f{margin-bottom:14px}
+details.alt-f summary{cursor:pointer;color:var(--bm-blue);font-weight:700;font-size:14px;padding:8px 0;list-style:none}
+details.alt-f summary::-webkit-details-marker{display:none}
+details.alt-f[open] summary{margin-bottom:6px}
+.cal-f{border:1.5px solid var(--bm-blue-light);border-radius:12px;padding:8px;margin-bottom:8px;background:#fff}
+.cal-f .cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-f .cab b{font-size:15px;color:var(--bm-blue);text-transform:capitalize}
+.cal-f .cab button{width:44px;height:40px;border:0;border-radius:10px;background:var(--bm-blue-light);color:var(--bm-blue);font-size:22px;font-weight:800;cursor:pointer}
+.cal-f .cab button:disabled{opacity:.3;cursor:default}
+.cal-f .sem,.cal-f .dias{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.cal-f .sem span{font-size:11.5px;font-weight:800;color:#646568;padding:2px 0}
+.cal-f .dias button,.cal-f .dias span{height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:15px}
+.cal-f .dias button{border:1px solid #d5dcea;background:#fff;color:#1a1a2e;font-weight:700;cursor:pointer;font-family:inherit}
+.cal-f .dias span.no{background:#f1f2f4;color:#b4b8bf}
+.cal-f .dias .hoy{box-shadow:inset 0 0 0 2px var(--bm-blue-mid)}
+.cal-f .dias button.on{background:var(--bm-blue);border-color:var(--bm-blue);color:#fff}
+.cal-f .ley{font-size:11.5px;color:#646568;margin-top:6px}
+.bsel-f{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.bsel-f.dos{grid-template-columns:1fr 1fr}
+.bsel-f button{min-height:48px;border:1.5px solid var(--bm-blue-mid);border-radius:10px;background:#fff;color:var(--bm-blue);font-weight:800;font-size:13.5px;line-height:1.25;cursor:pointer;font-family:inherit;padding:6px}
+.bsel-f button.on{background:var(--bm-blue);border-color:var(--bm-blue);color:#fff}
+.field:has(select.error) .bsel-f button{border-color:var(--bm-red)}
+.form-body{background:#F0F4FB}
+.paso-f .section{background:#fff;margin:12px 10px;border:1px solid #dde4ef;border-radius:14px;box-shadow:0 2px 6px rgba(26,58,107,.07);padding:14px}
+.paso-f .section-title{font-size:13.5px;font-weight:800;letter-spacing:.05em;margin:-2px 0 12px;padding-bottom:9px;border-bottom:1.5px solid #eef1f6}
+.paso-f .section-title::before{width:4px;height:16px}
+.paso-f .section-title .ic{font-size:16px;letter-spacing:0}
+.paso-f .busc-fijo{background:#fff}
+.limpiar-f{margin-top:2px}
+body.buscando-f .form-header,body.buscando-f .fijo-cli{position:static!important}
+body.buscando-f .busc-fijo{top:0!important}
+.paso-f #articulos-container{max-height:none;overflow:visible}   /* 22/11: sin recuadro con scroll propio (el buscador fijo lo tapaba) */
+.paso-f #cuentaLineas{display:none}
+body.buscando-f .paso-f.on{padding-bottom:75vh}
+body.escribiendo-f .paso-f.on{padding-bottom:60vh}   /* hueco para poder subir el campo por encima del teclado */
+.fecha-elegida-f{font-size:13.5px;color:#1a1a2e;margin:2px 0 4px}
+.field:has(#fecha_transporte.error) .fechas-f button{border-color:var(--bm-red)}
+.aviso-cant-f{font-size:12px;font-weight:700;color:#9a5b00;background:#fff4e0;border-radius:6px;padding:5px 8px;margin-top:6px}
+.btn-correo-f{display:block;margin-top:10px;padding:14px;background:var(--bm-green-dark);color:#fff!important;border-radius:12px;font-weight:800;font-size:16px;text-decoration:none;text-align:center}`;
+  document.head.appendChild(st);
+})();
+
+// 21/11 (Rossy): cada bloque en su tarjeta, con icono en el título (antes los bloques se perdían)
+(function iconosTitulosF(){
+  const IC={'Cuándo':'📅','Contacto en obra':'👷','Descarga':'🚚','Pedido':'🏢','Cliente':'👤','Obra o dirección de entrega':'📍','Pago':'💳',
+            'Observaciones':'📝','Notas para transporte':'📝','Resumen del pedido':'📋','Líneas de pedido':'🛒','Almacén que sirve (propuesta automática)':'🏭'};
+  document.querySelectorAll('.paso-f .section-title').forEach(t=>{ const k=t.textContent.trim(); if(IC[k] && !t.querySelector('.ic')) t.insertAdjacentHTML('afterbegin','<span class="ic" aria-hidden="true">'+IC[k]+'</span> '); });
+})();
+(function montarExtrasF(){
+  const fa=bloqueCampoF('fecha_auto'); if(fa) fa.classList.add('oculto-f');
+  // contacto alternativo plegado, en su sitio
+  const ba=bloqueCampoF('contacto_alt'), bt=bloqueCampoF('tlfo2');
+  if(ba && bt){
+    const d=document.createElement('details'); d.className='alt-f'; d.id='altF';
+    d.innerHTML='<summary>+ Añadir contacto alternativo (opcional)</summary>';
+    ba.parentNode.insertBefore(d, ba); d.appendChild(ba); d.appendChild(bt);
+  }
+  // botones de fecha encima del calendario
+  const ft=document.getElementById('fecha_transporte');
+  if(ft){ const c=document.createElement('div'); c.className='fechas-f'; c.id='fechasF'; ft.parentNode.insertBefore(c, ft);
+    // 21/11 (Rossy): calendario propio con los días no válidos en gris (pasados, sábados, domingos y festivos); el del móvil no lo permite
+    const cal=document.createElement('div'); cal.className='cal-f'; cal.id='calF'; cal.style.display='none'; ft.parentNode.insertBefore(cal, ft);
+    const el=document.createElement('div'); el.className='fecha-elegida-f'; el.id='fechaElegidaF'; ft.parentNode.insertBefore(el, ft);
+    ft.style.display='none';
+    ft.addEventListener('change', pintarFechasF); ft.addEventListener('input', pintarFechasF); pintarFechasF(); }
+})();
+
+/* ---------- 21/11 (Rossy): franja y forma de pago con BOTONES (1 toque en vez de 2; nada marcado de antemano) ----------
+   El desplegable sigue existiendo (oculto) y guarda el valor: mismas validaciones, mismo pedido. */
+function botonesDeSelectF(id, cols){
+  const sel=document.getElementById(id); if(!sel || document.getElementById('bot_'+id)) return;
+  const c=document.createElement('div'); c.className='bsel-f'+(cols===2?' dos':''); c.id='bot_'+id;
+  sel.parentNode.insertBefore(c, sel); sel.style.display='none';
+  sel.addEventListener('change', ()=>pintarBotonesSelF(id));
+  pintarBotonesSelF(id);
+}
+function pintarBotonesSelF(id){
+  const sel=document.getElementById(id), c=document.getElementById('bot_'+id); if(!sel || !c) return;
+  c.innerHTML=[...sel.options].filter(o=>o.value).map(o=>'<button type="button" class="'+(sel.value===o.value?'on':'')+'" data-v="'+esc(o.value)+'" onclick="elegirBotonSelF(\''+id+'\', this.dataset.v)">'+esc(o.textContent)+'</button>').join('');
+}
+window.elegirBotonSelF=function elegirBotonSelF(id, v){
+  const sel=document.getElementById(id); if(!sel) return;
+  sel.value=v; sel.classList.remove('error');
+  sel.dispatchEvent(new Event('input',{bubbles:true})); sel.dispatchEvent(new Event('change',{bubbles:true}));
+};
+botonesDeSelectF('franja', 3); botonesDeSelectF('forma_pago', 2);
+
+/* ---------- fecha: próximo laborable, el siguiente, otro día ---------- */
+function laborableF(d, n){ const x=new Date(d); let k=0; while(k<n){ x.setDate(x.getDate()+1); if(esLaborableF(isoLocalF(x))) k++; } return x; }
+function pintarFechasF(){
+  const c=document.getElementById('fechasF'); if(!c) return;
+  const hoy=new Date(), d1=laborableF(hoy,1), d2=laborableF(hoy,2), v=f('fecha_transporte');
+  const DS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const dentro=n=>{ const x=new Date(hoy); x.setDate(x.getDate()+n); return isoLocalF(x); };
+  const nombre=d=>{ const i=isoLocalF(d); return i===dentro(1)?'Mañana':i===dentro(2)?'Pasado mañana':DS[d.getDay()].charAt(0).toUpperCase()+DS[d.getDay()].slice(1); };
+  const btn=d=>{ const i=isoLocalF(d); return '<button type="button" class="'+(v===i?'on':'')+'" data-fecha="'+i+'" onclick="ponFechaF(this.dataset.fecha)">'+nombre(d)+'<small>'+DS[d.getDay()].slice(0,3)+' '+d.getDate()+'/'+(d.getMonth()+1)+'</small></button>'; };
+  const otro=v && v!==isoLocalF(d1) && v!==isoLocalF(d2);
+  c.innerHTML=btn(d1)+btn(d2)+'<button type="button" class="'+(otro?'on':'')+'" onclick="otraFechaF()">Otro día<small>'+(otro?fecArt(v).slice(0,5):'calendario')+'</small></button>';
+  const el=document.getElementById('fechaElegidaF');
+  if(el){ if(v){ const d=new Date(v+'T12:00:00'); el.innerHTML='Transporte el <b>'+DS[d.getDay()]+' '+fecArt(v)+'</b>'; } else el.textContent=''; }
+}
+window.ponFechaF=function ponFechaF(iso){
+  const ft=document.getElementById('fecha_transporte'); ft.value=iso; ft.classList.remove('error');
+  const cal=document.getElementById('calF'); if(cal) cal.style.display='none';
+  ft.dispatchEvent(new Event('input',{bubbles:true})); ft.dispatchEvent(new Event('change',{bubbles:true}));
+};
+/* ---------- calendario «Otro día»: días no válidos en gris y sin poder tocarlos ---------- */
+let calMesF=null;   // primer día del mes que se ve
+window.otraFechaF=function otraFechaF(){
+  const cal=document.getElementById('calF'); if(!cal) return;
+  if(cal.style.display!=='none'){ cal.style.display='none'; return; }
+  const v=f('fecha_transporte'), base=v?new Date(v+'T12:00:00'):new Date();
+  calMesF=new Date(base.getFullYear(), base.getMonth(), 1);
+  cal.style.display=''; pintarCalF();
+};
+window.mesCalF=function mesCalF(n){ calMesF=new Date(calMesF.getFullYear(), calMesF.getMonth()+n, 1); pintarCalF(); };
+function pintarCalF(){
+  const cal=document.getElementById('calF'); if(!cal || !calMesF) return;
+  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const hoy=new Date(), hoyIso=isoLocalF(hoy), v=f('fecha_transporte');
+  const y=calMesF.getFullYear(), m=calMesF.getMonth(), nDias=new Date(y, m+1, 0).getDate();
+  const hueco=(new Date(y, m, 1).getDay()+6)%7;   // semana de lunes a domingo
+  const puedeAtras=(y>hoy.getFullYear()) || (y===hoy.getFullYear() && m>hoy.getMonth());
+  let h='<div class="cab"><button type="button" onclick="mesCalF(-1)"'+(puedeAtras?'':' disabled')+' aria-label="Mes anterior">‹</button><b>'+MESES[m]+' '+y+'</b><button type="button" onclick="mesCalF(1)" aria-label="Mes siguiente">›</button></div>'+
+    '<div class="sem">'+['L','M','X','J','V','S','D'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="dias">';
+  for(let i=0;i<hueco;i++) h+='<span></span>';
+  for(let d=1; d<=nDias; d++){
+    const iso=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const fest=FESTIVOS_TRANSPORTE_F.has(iso), mal=!!fechaTransporteMalF(iso);
+    const cls=(mal?'no':'')+(iso===v?' on':'')+(iso===hoyIso?' hoy':'');
+    h+=mal?'<span class="'+cls+'" title="'+(fest?'Festivo':iso<hoyIso?'Ya ha pasado':'Fin de semana')+'">'+d+'</span>'
+          :'<button type="button" class="'+cls+'" data-fecha="'+iso+'" onclick="ponFechaF(this.dataset.fecha)">'+d+'</button>';
+  }
+  cal.innerHTML=h+'</div><div class="ley">En gris: días pasados, sábados, domingos y festivos (transporte no reparte).</div>';
+}
+
+/* ---------- tienda: la última que usó este comercial en este móvil ---------- */
+function claveTiendaF(){ return 'pedidoTienda_'+((perfilActual&&perfilActual.email)||''); }
+function ponerTiendaRecordadaF(){
+  const t=document.getElementById('tienda'); if(!t || t.value || t.disabled) return;
+  let v=''; try{ v=localStorage.getItem(claveTiendaF())||''; }catch(e){}
+  if(v && [...t.options].some(o=>o.value===v)){ t.value=v; t.dispatchEvent(new Event('change',{bubbles:true})); }
+}
+esperarF(()=>perfilActual && document.getElementById('tienda').options.length>1, 30000).then(()=>setTimeout(ponerTiendaRecordadaF, 300));
+
+/* ---------- unidades con decimales ---------- */
+const UDS_DECIMALES_F=new Set(['m³','toneladas','kg','metros','m²','litros']);
+const addLineSinDecimalesF=window.addLine;
+window.addLine=function addLine(cod, desc, hist, ud){
+  const id=addLineSinDecimalesF.apply(this, arguments);
+  // 21/11 (Rossy, móvil): la tecla del teclado en unidades/dto. pasaba al campo siguiente («→») y no se podía seguir.
+  // Con «done» el teclado muestra «✓» y manda Intro: lleva al buscador para el siguiente artículo.
+  if(cod && id) ['uni_','dto_','desc_'].forEach(p=>{ const e=document.getElementById(p+id); if(e){ e.enterKeyHint='done'; e.setAttribute('enterkeyhint','done'); } });
+  if(cod && id && UDS_DECIMALES_F.has(udTxtArt(ud))){
+    const u=document.getElementById('uni_'+id);
+    if(u){ u.type='text'; u.inputMode='decimal'; u.removeAttribute('step'); u.removeAttribute('min'); u.placeholder='0,0';
+      u.addEventListener('input', ()=>{ const v=u.value.replace(',', '.').replace(/[^0-9.]/g,''); if(v!==u.value) u.value=v; }); }
+  }
+  return id;
+};
+
+// Intro (o «✓») en unidades, dto. o descripción de una línea → al buscador (antes solo desde unidades)
+document.addEventListener('keydown', e=>{
+  const t=e.target; if(!t || !(e.key==='Enter' || e.keyCode===13)) return;
+  if(/^(dto_|desc_)/.test(t.id||'') && t.closest('#articulos-container')){ e.preventDefault(); t.blur(); irBuscadorArt(); }
+});
+(function textoOtroArtF(){ const b=document.getElementById('btnOtroArt'); if(b) b.closest('.otro-art').style.marginBottom='4px'; })();
+
+/* ---------- 21/11 (Rossy, móvil): al tocar el buscador el teclado tapaba los resultados ----------
+   Mientras se busca: la cabecera y la barra del cliente dejan de estar fijas, el buscador sube arriba del todo
+   y la lista ocupa todo el hueco visible hasta el teclado (se recalcula si el teclado cambia de alto). */
+if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
+  const q=document.getElementById('buscaArt');
+  const ajustarListaF=()=>{
+    if(!q || document.activeElement!==q) return;
+    const r=document.getElementById('resArt'), vv=window.visualViewport;
+    const alto=(vv?vv.height:window.innerHeight)-q.getBoundingClientRect().bottom-10;
+    if(r) r.style.maxHeight=Math.max(150, alto)+'px';
+  };
+  if(q){
+    // 22/11 (Rossy, 1.er artículo): Chrome recoloca el campo cuando el teclado TERMINA de abrirse y deshacía la subida
+    // (con líneas ya puestas no se notaba porque el buscador se queda pegado arriba). Se vuelve a subir varias veces
+    // y cada vez que cambia el alto visible (teclado), mientras se esté en el buscador.
+    const subirBuscadorF=()=>{
+      if(document.activeElement!==q) return;
+      const vv=window.visualViewport, off=vv?vv.offsetTop:0, top=q.getBoundingClientRect().top-off;
+      if(Math.abs(top-6)>4) window.scrollBy({top:top-6});
+      ajustarListaF();
+    };
+    q.addEventListener('focus', ()=>{
+      document.body.classList.add('buscando-f');
+      [350,700,1100].forEach(ms=>setTimeout(subirBuscadorF, ms));   // cuando ya ha salido el teclado
+    });
+    window._subirBuscadorF=subirBuscadorF;
+    q.addEventListener('blur', ()=>setTimeout(()=>{ if(document.activeElement!==q){ document.body.classList.remove('buscando-f'); const r=document.getElementById('resArt'); if(r) r.style.maxHeight=''; } }, 250));
+    q.addEventListener('input', ajustarListaF);
+    if(window.visualViewport) visualViewport.addEventListener('resize', ()=>{ setTimeout(ajustarListaF, 50); setTimeout(subirBuscadorF, 80); setTimeout(subirBuscadorF, 300); });
+  }
+}
+
+/* ---------- 22/11 (Rossy, móvil): al saltar a un campo de texto se abre el teclado y tapaba el campo y lo que sigue ----------
+   Cuando el teclado termina de abrirse (cambia el alto visible), el campo activo se coloca arriba, justo debajo de las barras fijas. */
+if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
+  const verCampoEnfocadoF=()=>{
+    const a=document.activeElement;
+    if(!a || !a.closest || !a.closest('.paso-f') || !a.matches('input,textarea') || /^(radio|checkbox)$/.test(a.type) || a.id==='buscaArt') return;
+    const fld=a.closest('.field')||a, r=fld.getBoundingClientRect();
+    let cab=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cab2-f'))||0;
+    // en el paso 2 el buscador también está fijo arriba: el campo va debajo de él (antes quedaba tapado)
+    const bf=a.closest('#pasoF2') && document.querySelector('#pasoF2 .busc-fijo'); if(bf) cab=Math.max(cab, bf.getBoundingClientRect().bottom);
+    const alto=window.visualViewport?visualViewport.height:window.innerHeight;
+    if(r.top<cab+4 || r.bottom>alto*0.6) window.scrollBy({top:r.top-cab-10, behavior:'smooth'});
+  };
+  if(window.visualViewport) visualViewport.addEventListener('resize', ()=>setTimeout(verCampoEnfocadoF, 60));
+  document.addEventListener('focusin', ()=>{ setTimeout(verCampoEnfocadoF, 350); setTimeout(verCampoEnfocadoF, 700); });
+}
+
+/* ---------- aviso ámbar de cantidad en el paso 2 ---------- */
+function avisoCantF(input){
+  const line=input.closest('.articulo-line'); if(!line || line.dataset.auto==='grua') return;
+  const art=line.querySelector('[id^=art_]'); if(!art) return;
+  const c=cod8Art(art.value), comp=COMPRAS[c], uq=comp?Number(comp.uq)||0:0, uni=Number(input.value)||0;
+  let a=line.querySelector('.aviso-cant-f');
+  if(!(uq>0 && uni>0 && (uni>3*uq || uni*3<uq))){ if(a) a.remove(); return; }
+  if(!a){ a=document.createElement('div'); a.className='aviso-cant-f'; line.appendChild(a); }
+  a.textContent='⚠ ¿Seguro? Muy distinto de la última vez: el '+fecArt(comp.uf)+' pidió '+cantArt(uq, comp.ud||(CAT_IDX[c]||{}).ud)+'.';
+}
+document.addEventListener('input', e=>{ if(/^uni_/.test((e.target&&e.target.id)||'')) avisoCantF(e.target); });
+
+/* ---------- una pregunta tras otra ---------- */
+var COBRO_F=new Set(['Cobro destino Efectivo','Cobro destino Datáfono','Paygold']);
+// 21/11 (Rossy): con cobro en destino la cantidad es OBLIGATORIA (el conductor tiene que saber cuánto cobrar)
+var COBRO_DESTINO_F=new Set(['Cobro destino Efectivo','Cobro destino Datáfono']);
+var CADENAS_F={
+  1:[{id:'comercial', ok:()=>!!f('comercial')},
+     {id:'tienda', ok:()=>!!f('tienda')},
+     {id:'partner', ok:()=>true},   // va con el cliente (se busca por nombre o por código)
+     {id:'cliente', ok:()=>!!clienteSeleccionado},
+     {id:'contacto_ln', ok:()=>!!f('contacto_ln') && (f('contacto_ln')!=='OTRO' || !!f('contacto_autorizado'))},
+     {id:'direccion', ok:()=>!!f('direccion')},
+     {id:'cp', ok:()=>true}],
+  3:[{id:'fecha_transporte', ok:()=>!!f('fecha_transporte') && !fechaTransporteMalF(f('fecha_transporte'))},
+     {id:'franja', ok:()=>!!f('franja')},
+     {id:'contacto_obra', ok:()=>!!f('contacto_obra')},
+     {id:'tlfo1', ok:()=>validateTel(f('tlfo1'))},
+     {id:'altF', el:true, ok:()=>true},
+     {id:'g_no', ok:()=>!!getRadio('grua')},
+     {id:'ce_si', ok:()=>!!getRadio('calle_estrecha')},
+     {id:'cr_si', ok:()=>getRadio('calle_restringida')==='No' || (getRadio('calle_restringida')==='Sí' && !!f('restr_desde') && !!f('restr_hasta'))},
+     {id:'ad_si', ok:()=>!!getRadio('adelantar')}],
+  4:[{id:'forma_pago', ok:()=>!!f('forma_pago')},
+     {id:'cantidad', si:()=>false /* 22/11 (Rossy): no se muestra, el comercial no sabe el importe */, ok:()=>!COBRO_DESTINO_F.has(f('forma_pago')) || +f('cantidad')>0, pide:()=>!f('cantidad')},
+     {id:'datos_importantes', ok:()=>true}]
+};
+function bloqueCadenaF(it){ return it.el?document.getElementById(it.id):bloqueCampoF(it.id); }
+function actualizarCadenasF(){
+  if(!CADENAS_F) return;   // (pintarPasoF la llama antes de que exista)
+  pintarFechasF();          // por si la fecha se ha puesto sin evento (pedido a medias)
+  pintarBotonesSelF('franja'); pintarBotonesSelF('forma_pago');
+  const labCant=document.getElementById('cantidad')?.closest('.field')?.querySelector('label');
+  if(labCant) labCant.classList.toggle('required', COBRO_DESTINO_F.has(f('forma_pago')));
+  Object.values(CADENAS_F).forEach(cad=>{
+    let previoOk=true;
+    cad.forEach(it=>{
+      const b=bloqueCadenaF(it); if(!b) return;
+      const ver=previoOk && (it.si?it.si():true);
+      b.classList.toggle('oculto-f', !ver);
+      if(ver && !it.ok()) previoOk=false;   // las siguientes esperan a que se conteste esta
+    });
+  });
+  // sin cobro en destino ni Paygold no hay cantidad a cobrar
+  const cant=document.getElementById('cantidad');
+  if(cant && cant.value && f('forma_pago') && !COBRO_F.has(f('forma_pago'))){ cant.value=''; if(pasoF===4) pintarResumenPasoF(); }   // el resumen, ya sin «cobrar X €»
+  // bloque sin nada visible: fuera también su título
+  document.querySelectorAll('.paso-f .section').forEach(s=>{
+    const hijos=[...s.children].filter(x=>!x.classList.contains('section-title') && !x.classList.contains('hint'));
+    if(hijos.length) s.classList.toggle('oculto-f', hijos.every(x=>x.classList.contains('oculto-f')));
+  });
+}
+function itemDeF(el){
+  for(const [p,cad] of Object.entries(CADENAS_F)) for(const it of cad){ const b=bloqueCadenaF(it); if(b && b.contains(el)) return {p:+p, it, cad}; }
+  return null;
+}
+function cerrarTecladoF(){ const a=document.activeElement; if(a && a!==document.body && a.blur && a.matches && a.matches('input,textarea')) a.blur(); }
+function avanzarF(el){
+  if(borradorPausado) return;
+  const x=itemDeF(el); if(!x || x.p!==pasoF || !x.it.ok()) return;
+  actualizarCadenasF();
+  const i=x.cad.indexOf(x.it);
+  let sig=x.cad.slice(i+1).find(it=>{ const b=bloqueCadenaF(it); return b && !b.classList.contains('oculto-f') && (!it.ok() || (it.pide && it.pide())); });
+  // 21/11 (Rossy): si lo que sigue es opcional (observaciones, contacto alternativo…) también se baja hasta ello, pero sin abrir el teclado
+  let soloVer=false;
+  if(!sig){ sig=x.cad.slice(i+1).find(it=>{ const b=bloqueCadenaF(it); return b && !b.classList.contains('oculto-f'); }); soloVer=true; }
+  if(!sig){   // fin de la cadena: al siguiente bloque visible del paso (p. ej. el resumen)
+    cerrarTecladoF();
+    let n=el.closest('.section'); n=n && n.nextElementSibling;
+    while(n && (!n.classList.contains('section') || n.classList.contains('oculto-f'))) n=n.nextElementSibling;
+    if(n) setTimeout(()=>n.scrollIntoView({block:'start', behavior:'smooth'}), 80);
+    return;
+  }
+  const b=bloqueCadenaF(sig);
+  setTimeout(()=>{
+    b.scrollIntoView({block:'center', behavior:'smooth'});
+    if(soloVer){ cerrarTecladoF(); return; }
+    const inp=b.querySelector('input:not([type=radio]):not([type=hidden]):not([type=date]):not([type=time]), textarea');
+    if(inp && !inp.disabled && inp.offsetParent!==null) inp.focus({preventScroll:true}); else cerrarTecladoF();
+  }, 80);
+}
+document.addEventListener('change', e=>{
+  const t=e.target; if(!t || !t.closest || !t.closest('.paso-f')) return;
+  if(t.type==='radio'){ const fl=t.closest('.field'); if(fl) fl.classList.remove('falta-f'); }
+  if(t.id==='fecha_transporte'){ const m=fechaTransporteMalF(t.value); t.classList.toggle('error', !!m); if(m) errF(m); else okF(); }   // avisa en el momento (sábado, domingo o pasada)
+  actualizarCadenasF();
+  if(t.tagName==='TEXTAREA' || ['text','tel','number','search','email'].includes(t.type)) return;   // texto: con Intro o al completar el teléfono
+  avanzarF(t);
+});
+document.addEventListener('input', e=>{
+  const t=e.target; if(!t || !t.closest || !t.closest('.paso-f') || /^uni_|^buscaArt$/.test(t.id||'')) return;
+  actualizarCadenasF();
+  if(t.id==='tlfo1' && validateTel(t.value)) avanzarF(t);
+});
+document.addEventListener('keydown', e=>{
+  const t=e.target; if(e.key!=='Enter' || !t || !t.closest || !t.closest('.paso-f') || t.tagName==='TEXTAREA' || /^uni_|^buscaArt$/.test(t.id||'')) return;
+  if(itemDeF(t)){ e.preventDefault(); actualizarCadenasF(); avanzarF(t); }
+});
+// 21/11 (2.ª revisión): elegir de cualquier lista de sugerencias (contacto en obra de un pedido anterior, dirección, obra…)
+// también hace avanzar la cadena; antes solo se rellenaba el valor y no aparecían las preguntas siguientes
+document.addEventListener('click', e=>{
+  const it=e.target && e.target.closest && e.target.closest('.paso-f .autocomplete-item'); if(!it) return;
+  const fld=it.closest('.field');
+  setTimeout(()=>{ actualizarCadenasF(); const inp=fld && fld.querySelector('input'); if(inp) avanzarF(inp); }, 0);
+});
+onClienteSeleccionado=(function(o){ return function(it){ o(it); actualizarCadenasF(); avanzarF(document.getElementById('cliente')); }; })(onClienteSeleccionado);
+pintarContactos=(function(o){ return function(){ o(); actualizarCadenasF(); }; })(pintarContactos);
+elegirObra=(function(o){ return function(it){ o(it); actualizarCadenasF(); }; })(elegirObra);
+actualizarCadenasF();
+
+/* ===== 22/11/2026 (Rossy, pruebas en su móvil) · SOLO PRUEBA · va DESPUÉS de pedido_cadenas.js =====
+   1. Flecha «→» del teclado (su teclado no hace caso del ✓): de Unidades a Dto. SIN tocar la pantalla = quiere seguir → al buscador.
+      Si toca Dto. con el dedo, entra normal.
+   2. Línea nueva colocada debajo del buscador cuando la lista de resultados ya se ha cerrado (antes quedaba tapada con artículos del catálogo).
+   3. Buscador: al tocarlo no salen de golpe todas sus compras; se escribe y salen primero las que ya compra y después el catálogo.
+      Enlace «⭐ Ver lo que más compra» para quien la quiera.
+   4. (en construir_prueba.py) códigos: da igual cuántos ceros a la izquierda; el código exacto sale el primero y marcado.
+   5. Más ancho y código visible (6 cifras); Dto. más estrecho.
+   6. Al volver al buscador se marca en azul: «Busca el siguiente artículo».
+   7. Almacén y tiempo fuera de la pantalla del comercial (se sigue calculando y transporte lo ve en su bandeja);
+      solo un aviso si puede faltar stock (opción b de Rossy).
+   8. Líneas plegadas: solo se ve abierta la que se está rellenando; las completas quedan en una fila (toca para cambiarla).
+   9. Botón «Siguiente: Entrega →» también debajo de los artículos; al cerrar el teclado vuelve la barra de abajo.
+  10. Resumen (paso 4) con «✏ Cambiar» en cada dato y en cada artículo. */
+(function estilosLineasF(){
+  const st=document.createElement('style');
+  st.textContent=`
+.paso-f .section{margin:10px 4px;padding:12px 10px}
+.paso-f .articulo-line{padding:8px;margin-bottom:8px}
+/* 22/11 (Rossy): tarjetas de artículos al ancho de los demás elementos (sin el recuadro intermedio) */
+.paso-f #articulos-container{border:0;padding:0;background:transparent;border-radius:0}
+.paso-f .articulo-line-top{grid-template-columns:minmax(76px,1.35fr) 1.15fr .8fr 40px;gap:6px}
+.paso-f .articulo-line-top input{padding-left:8px;padding-right:6px}
+#almacenSec{display:none!important}
+.aviso-stock-f{margin:8px 0 0;padding:8px 10px;border-radius:10px;background:#fff4e0;color:#7a4700;font-size:13px;font-weight:700;line-height:1.45}
+.busc-fijo.siguiente-f .busc-art input{border-color:var(--bm-blue);box-shadow:0 0 0 4px rgba(0,56,128,.18)}
+.busc-fijo .rotulo-f{display:none;font-size:12.5px;font-weight:800;color:var(--bm-blue);margin:0 0 4px 2px}
+.busc-fijo.siguiente-f .rotulo-f{display:block}
+#btnOtroArt:focus,#btnOtroArt:focus-visible{outline:3px solid var(--bm-blue);outline-offset:2px;background:#d6e2f5}
+.sig-inline-f{display:block;width:100%;min-height:48px;margin-top:10px;border:0;border-radius:12px;background:var(--bm-blue);color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit}
+.ver-compras-f{display:block;width:100%;padding:10px 12px;border:0;border-top:1px solid #eef1f6;background:#fff;color:var(--bm-blue);font-weight:800;font-size:13.5px;text-align:left;cursor:pointer;font-family:inherit}
+.exacto-f{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;background:#e6f4ea;color:var(--bm-green-dark);border-radius:9px;padding:0 7px}
+.res-lin-f{display:none;align-items:center;gap:8px;cursor:pointer}
+.articulo-line.plegada-f{padding:8px 10px}
+.articulo-line.plegada-f > *:not(.res-lin-f):not(.nota-stock-f){display:none!important}
+.res-lin-f .stk{flex:0 0 auto;color:#b45f00;font-size:15px;margin-right:-4px}
+.nota-stock-f{font-size:12px;font-weight:700;color:#9a5b00;margin:5px 0 0 2px;line-height:1.35}
+.articulo-line.sinstock-f{border-color:#f0c97a}
+.articulo-line.plegada-f > .res-lin-f{display:flex}
+.res-lin-f .n{flex:0 0 auto;font-size:11.5px;font-weight:800;color:#fff;background:var(--bm-blue);border-radius:9px;padding:1px 8px}
+.linea-auto .res-lin-f .n{background:var(--bm-red)}
+.res-lin-f .t{flex:1;min-width:0;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-lin-f .t small{font-weight:600;color:#646568}
+.res-lin-f .q{flex:0 0 auto;font-size:15px;font-weight:800}
+.res-lin-f .ed{flex:0 0 auto;color:var(--bm-blue);font-size:15px}
+.articulo-line.plegada-f.ojo-f{background:#fff4e0;border-color:#f0c97a}
+.rev-dato .cambiar-f,.rev-tit .cambiar-f,.rev-lin .cambiar-f{flex:0 0 auto;margin-left:auto;border:0;background:none;color:var(--bm-blue);font-weight:800;font-size:12.5px;cursor:pointer;padding:2px 0 2px 8px;font-family:inherit;white-space:nowrap}
+.rev-tit{display:flex;align-items:center}
+/* 22/11 (Rossy): el aviso del botón en ROJO BigMat y latiendo; en azul se perdía (todo es azul) */
+@keyframes latidoF{0%,100%{box-shadow:0 0 0 0 rgba(224,0,27,.0)}50%{box-shadow:0 0 0 6px rgba(224,0,27,.45)}}
+.destaca-f{border-color:#E0001B!important;animation:latidoF .8s ease-in-out 3}
+.dir-wrap-f{position:relative}
+.dir-wrap-f input{padding-right:44px;width:100%;box-sizing:border-box}
+.borrar-dir-f{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:18px;background:#eef1f6;color:#646568;font-size:16px;font-weight:800;cursor:pointer}`;
+  document.head.appendChild(st);
+})();
+
+/* ---------- montaje: rótulo del buscador, botón «Siguiente» en el paso 2, aviso de stock ---------- */
+(function montarLineasF(){
+  const ba=document.querySelector('.busc-art'); if(ba && !document.querySelector('.rotulo-f')) ba.insertAdjacentHTML('beforebegin','<div class="rotulo-f">🔍 Busca el siguiente artículo</div>');
+  const oa=document.querySelector('.otro-art');
+  if(oa){
+    oa.insertAdjacentHTML('afterend','<div class="aviso-stock-f" id="avisoStockF" style="display:none"></div>');
+  }
+})();
+
+/* ---------- 1. flecha «→» del teclado: de Unidades a Dto. sin tocar la pantalla = siguiente artículo ---------- */
+let ultimoToqueF=0;
+['pointerdown','touchstart','mousedown'].forEach(ev=>document.addEventListener(ev, ()=>{ ultimoToqueF=Date.now(); }, {capture:true, passive:true}));
+document.addEventListener('focusin', e=>{
+  const t=e.target, de=e.relatedTarget; if(!t || !t.id || Date.now()-ultimoToqueF<600) return;   // con el dedo: entra normal
+  if(!(window.matchMedia && matchMedia('(pointer:coarse)').matches)) return;   // en el PC el tabulador va a Dto. con normalidad (solo móvil)
+  const m=t.id.match(/^(dto|desc)_(\d+)$/);
+  const desdeUnidades=m && de && de.id==='uni_'+m[2];
+  const alBoton=t.id==='btnOtroArt' && de && /^(uni|dto|desc)_/.test(de.id||'');
+  if(desdeUnidades || alBoton){ setTimeout(()=>{ t.blur(); terminarLineaF(); }, 0); }
+});
+/* 22/11 (Rossy): Intro/flecha al acabar una línea NO van al buscador (abría el teclado y había que bajar a buscar «Siguiente»).
+   Cierran el teclado, pliegan la línea y dejan a la vista «➕ Añadir otro artículo» y «Siguiente: Entrega →».
+   Al buscador solo se va pulsando «Añadir otro artículo». */
+function terminarLineaF(){
+  const a=document.activeElement; if(a && a.blur && a!==document.body) a.blur();
+  document.body.classList.remove('escribiendo-f');
+  plegarCompletasF();
+  const b=document.getElementById('btnOtroArt'); if(!b) return;
+  // 22/11 (Rossy): sin brillo ni latido; el botón ya se distingue bien
+  setTimeout(()=>{   // cuando ya se ha cerrado el teclado: el botón, entero, por encima de la barra de abajo
+    const nav=document.getElementById('navF'), alto=(window.visualViewport?visualViewport.height:innerHeight)-(nav?nav.offsetHeight:0)-12;
+    const r=b.getBoundingClientRect(); if(r.bottom>alto || r.top<0) window.scrollBy({top:r.bottom-alto, behavior:'smooth'});
+  }, 300);
+}
+window.terminarLineaF=terminarLineaF;
+// Intro en unidades, dto. o descripción: se atiende aquí (fase de captura) y no llega a los manejadores antiguos que iban al buscador
+document.addEventListener('keydown', e=>{
+  const t=e.target; if(!t || !(e.key==='Enter' || e.keyCode===13)) return;
+  if(/^(uni_|dto_|desc_)/.test(t.id||'') && t.closest('#articulos-container')){ e.preventDefault(); e.stopImmediatePropagation(); terminarLineaF(); }
+}, true);
+
+/* ---------- 6. al volver al buscador, que se vea: marco azul y «Busca el siguiente artículo» ---------- */
+const irBuscadorArtBaseF=window.irBuscadorArt;
+window.irBuscadorArt=function irBuscadorArt(){
+  plegarCompletasF();
+  irBuscadorArtBaseF();
+  const ba=document.querySelector('.busc-fijo'); if(!ba) return;
+  ba.classList.add('siguiente-f'); clearTimeout(window._tSigF); window._tSigF=setTimeout(()=>ba.classList.remove('siguiente-f'), 4000);
+};
+document.addEventListener('input', e=>{ if(e.target && e.target.id==='buscaArt'){ const ba=document.querySelector('.busc-fijo'); if(ba && e.target.value) ba.classList.remove('siguiente-f'); } });
+
+/* ---------- 3. buscador: nada de golpe; se escribe y salen primero las que ya compra ---------- */
+let verComprasF=false;
+const buscarArtConTodoF=window.buscarArt;
+window.buscarArt=function buscarArt(){
+  const q=document.getElementById('buscaArt'), r=document.getElementById('resArt');
+  if(q && r && clienteSeleccionado && !q.value.trim() && !verComprasF){
+    r.innerHTML='<div class="vacio">Escribe el código o una palabra (cemento, mortero…): primero salen los que <b>ya compra este cliente</b> y debajo el resto del catálogo.</div>'+
+      (comprasCliente.length?'<button type="button" class="ver-compras-f" onclick="verLoQueCompraF()">⭐ Ver lo que más compra ('+comprasCliente.length+')</button>':'');
+    return;
+  }
+  buscarArtConTodoF();
+  // código exacto: el primero (ya ordenado en el buscador) y marcado
+  const pal=toksArt(q?q.value:'').map(p=>/^\d+$/.test(p)?p.replace(/^0+(?=.)/,''):p);
+  if(r && pal.length===1 && /^\d+$/.test(pal[0])){
+    r.querySelectorAll('.it .s').forEach(s=>{ const c=(s.textContent||'').split(' ·')[0].trim(); if(c===pal[0] && !s.querySelector('.exacto-f')) s.insertAdjacentHTML('afterbegin','<span class="exacto-f" style="margin:0 6px 0 0">código exacto</span>'); });
+  }
+};
+window.verLoQueCompraF=function verLoQueCompraF(){ verComprasF=true; buscarArtConTodoF(); const q=document.getElementById('buscaArt'); if(q) q.focus({preventScroll:true}); };
+document.addEventListener('input', e=>{ if(e.target && e.target.id==='buscaArt') verComprasF=false; });
+
+/* ---------- 8. líneas plegadas ---------- */
+function lineaCompletaF(d){
+  const u=d.querySelector('[id^=uni_]'); if(!u || !(+u.value>0)) return false;
+  if(d.dataset.manual==='1'){ const e=d.querySelector('[id^=desc_]'); if(!e || e.value.trim().length<3) return false; }
+  return true;
+}
+function pintarResumenLineaF(d){
+  let r=d.querySelector(':scope > .res-lin-f');
+  if(!r){ r=document.createElement('div'); r.className='res-lin-f'; r.setAttribute('role','button'); r.tabIndex=0; d.insertBefore(r, d.firstChild); r.addEventListener('click', ()=>abrirLineaF(d)); }
+  const v=s=>(d.querySelector(s)||{}).value||'';
+  const n=(d.querySelector('.num-linea')||{}).textContent||'';
+  const lab=((d.querySelector('[id^=uni_]')||{}).closest?.('.field')?.querySelector('label')?.textContent.match(/\(([^)]+)\)/)||[])[1]||'uds';
+  const ojo=!!d.querySelector('.aviso-cant-f');
+  r.innerHTML=(d.classList.contains('sinstock-f')?'<span class="stk" title="Puede faltar stock">⚠</span>':'')+'<span class="n">'+esc(n.replace('Artículo ','').replace(' · grúa (automática)',' · grúa'))+'</span>'+
+    '<span class="t">'+esc(d.dataset.auto==='grua'?'Grúa (automática)':(v('[id^=desc_]')||'(sin descripción)'))+' <small>· '+esc(v('[id^=art_]'))+(+v('[id^=dto_]')>0?' · dto. '+esc(v('[id^=dto_]'))+' %':'')+'</small></span>'+
+    '<span class="q">'+(ojo?'⚠ ':'')+esc(v('[id^=uni_]'))+' <small style="font-weight:600;font-size:12px">'+esc(lab)+'</small></span><span class="ed" aria-label="Cambiar">✏</span>';
+  d.classList.toggle('ojo-f', ojo);
+}
+function plegarCompletasF(salvo){
+  document.querySelectorAll('#articulos-container .articulo-line').forEach(d=>{
+    if(d===salvo) return;
+    if(lineaCompletaF(d)){ pintarResumenLineaF(d); d.classList.add('plegada-f'); }
+    else d.classList.remove('plegada-f');   // incompleta: se queda abierta para rellenarla
+  });
+}
+function abrirLineaF(d){
+  plegarCompletasF(d);
+  d.classList.remove('plegada-f');
+  setTimeout(()=>{
+    const bf=document.querySelector('#pasoF2 .busc-fijo'), lim=(bf?bf.getBoundingClientRect().bottom:0)+8;
+    window.scrollBy({top:d.getBoundingClientRect().top-lim, behavior:'smooth'});
+    const u=d.querySelector('[id^=uni_]'); if(u && d.dataset.auto!=='grua') u.focus({preventScroll:true});
+  }, 60);
+}
+window.abrirLineaF=abrirLineaF;
+
+/* ---------- 2. línea nueva: arriba, abierta, y colocada debajo del buscador cuando la lista ya se ha cerrado ---------- */
+subirLineaF=function(id){
+  const c=document.getElementById('articulos-container'), d=document.getElementById('line-'+id);
+  document.body.classList.remove('buscando-f');   // la cabecera vuelve a su sitio ANTES de colocar la línea
+  if(c && d && c.firstChild!==d){ c.insertBefore(d, c.firstChild); renumerarLineas(); }
+  okF();
+  if(!d) return;
+  plegarCompletasF(d);
+  const colocar=()=>{ const bf=document.querySelector('#pasoF2 .busc-fijo'), lim=(bf?bf.getBoundingClientRect().bottom:0)+8;
+    const top=d.getBoundingClientRect().top; if(Math.abs(top-lim)>6) window.scrollBy({top:top-lim}); };
+  requestAnimationFrame(()=>setTimeout(colocar, 120)); setTimeout(colocar, 450); setTimeout(colocar, 850);
+};
+// al entrar en el paso 2 y al validarlo: completas plegadas, incompletas abiertas
+const pintarPasoBaseF=pintarPasoF;
+pintarPasoF=function(){ pintarPasoBaseF(); if(pasoF===2) plegarCompletasF(); };
+const validarPasoBaseF=validarPasoF;
+validarPasoF=function(k){
+  const ok=validarPasoBaseF(k);
+  if(!ok && k===2) document.querySelectorAll('#articulos-container .articulo-line').forEach(d=>{ if(!lineaCompletaF(d)) d.classList.remove('plegada-f'); });
+  return ok;
+};
+// si cambia el aviso de cantidad o la grúa, el resumen de la línea plegada se actualiza
+new MutationObserver(()=>document.querySelectorAll('#articulos-container .articulo-line.plegada-f').forEach(pintarResumenLineaF))
+  .observe(document.getElementById('articulos-container'), {childList:true, subtree:false});
+
+/* ---------- 7. aviso de stock (opción b): sin almacén ni tiempo, solo si puede faltar ---------- */
+calcularAlmacen=(function(o){ return async function(){ await o(); pintarAvisoStockF(); }; })(calcularAlmacen);
+// 22/11 (Rossy): el aviso va en CADA artículo sin stock: ⚠ delante del número y una nota pequeña debajo (sin recuadro general)
+function pintarAvisoStockF(){
+  const a=document.getElementById('avisoStockF'); if(a){ a.style.display='none'; a.textContent=''; }
+  const fal=new Set(((almacenCalculado && !almacenCalculado.completo)?(almacenCalculado.faltan||[]):[]).map(c=>sinCeros(c)));
+  document.querySelectorAll('#articulos-container .articulo-line').forEach(d=>{
+    const c=(d.querySelector('[id^=art_]')||{}).value||'', sin=d.dataset.auto!=='grua' && fal.has(c);
+    d.classList.toggle('sinstock-f', sin);
+    let nt=d.querySelector(':scope > .nota-stock-f');
+    if(sin && !nt){ nt=document.createElement('div'); nt.className='nota-stock-f'; nt.textContent='Puede faltar stock · transporte te confirmará la fecha'; d.appendChild(nt); }
+    if(!sin && nt) nt.remove();
+    if(d.classList.contains('plegada-f')) pintarResumenLineaF(d);
+  });
+}
+
+/* ---------- 9. teclado cerrado con «atrás»: el campo pierde el foco y vuelve la barra de abajo ---------- */
+if(window.visualViewport){
+  let altoAntesF=visualViewport.height;
+  visualViewport.addEventListener('resize', ()=>{
+    const h=visualViewport.height;
+    if(h-altoAntesF>150){ const a=document.activeElement; if(a && a.matches && a.matches('input:not([type=radio]):not([type=checkbox]),textarea') && a.id!=='buscaArt') a.blur(); document.body.classList.remove('escribiendo-f'); }
+    altoAntesF=h;
+  });
+}
+
+/* ---------- 11. (22/11) dirección de entrega: borrar y volver a ver las obras ----------
+   Antes la lista de obras solo salía al entrar con el campo vacío; al borrar con el teclado ya no volvía
+   (y con menos de 4 letras se cerraba). Ahora: botón ✕ para borrar, y con el campo vacío o con 1–3 letras salen sus obras filtradas. */
+function itemsDireccionF(term){
+  const todos=obrasCliente.map(itemObra).concat(sugerenciasCliente.direcciones.map(x=>Object.assign({},x,{subText:(x.subText||'')+' · dirección de un pedido anterior (sin código LN)'})));
+  if(!term) return todos;
+  const n=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const pals=n(term).split(/\s+/).filter(Boolean);
+  return todos.filter(it=>{ const h=n((it.mainText||'')+' '+(it.subText||'')); return pals.every(w=>h.includes(w)); });
+}
+function abrirObrasF(term){
+  const l=document.getElementById('direccion_list'); if(!l) return;
+  const items=itemsDireccionF(term);
+  if(items.length) renderAutocomplete(l, items, it=>{ it.obraLN ? elegirObra(it) : seleccionarDireccion(it); pintarBorrarDirF(); });
+  else l.classList.remove('open');
+}
+function pintarBorrarDirF(){ const b=document.getElementById('borrarDirF'); if(b) b.style.display=f('direccion')?'':'none'; }
+window.borrarDireccionF=function borrarDireccionF(){
+  ['direccion','cp','municipio'].forEach(id=>{ const e=document.getElementById(id); if(e){ e.value=''; e.classList.remove('error'); } });
+  obraElegida=null; coordsObra=null; mostrarObraHint(); pintarBorrarDirF(); actualizarCadenasF(); guardarBorradorPronto(); programarAlmacen();
+  const d=document.getElementById('direccion'); if(d) d.focus({preventScroll:true});
+  setTimeout(()=>abrirObrasF(''), 0);   // después del «clic fuera cierra las listas» general
+};
+(function montarDireccionF(){
+  const d=document.getElementById('direccion'); if(!d) return;
+  const w=document.createElement('div'); w.className='dir-wrap-f'; d.parentNode.insertBefore(w, d); w.appendChild(d);
+  w.insertAdjacentHTML('beforeend','<button type="button" class="borrar-dir-f" id="borrarDirF" aria-label="Borrar la dirección" onclick="borrarDireccionF()" style="display:none">✕</button>');
+  d.addEventListener('click', ()=>{ if(!d.value) abrirObrasF(''); });
+  d.addEventListener('input', ()=>{
+    pintarBorrarDirF();
+    const v=d.value.trim();
+    if(v.length<4){ abrirObrasF(v); setTimeout(()=>{ if(d.value.trim()===v) abrirObrasF(v); }, 480); }   // la búsqueda de calles cierra la lista con menos de 4 letras
+  });
+})();
+elegirObra=(function(o){ return function(it){ o(it); pintarBorrarDirF(); }; })(elegirObra);
+seleccionarDireccion=(function(o){ return function(it){ o(it); pintarBorrarDirF(); actualizarCadenasF(); }; })(seleccionarDireccion);
+
+/* ---------- 10. resumen con «✏ Cambiar» ---------- */
+const PASO_DATO_F={'Cliente':1,'Obra':1,'Tienda':1,'Transporte':3,'Contacto':3,'Descarga':3};
+const pintarResumenBaseF=pintarResumenPasoF;
+pintarResumenPasoF=function(){
+  pintarResumenBaseF();
+  const r=document.getElementById('resumenPasoF'); if(!r) return;
+  r.querySelectorAll('.rev-dato').forEach(row=>{ const k=(row.querySelector('span')||{}).textContent||''; const p=PASO_DATO_F[k.trim()];
+    if(p && !row.querySelector('.cambiar-f')) row.insertAdjacentHTML('beforeend','<button type="button" class="cambiar-f" onclick="irPasoF('+p+',true)">✏ Cambiar</button>'); });
+  const tit=r.querySelector('.rev-tit'); if(tit && !tit.querySelector('.cambiar-f')) tit.insertAdjacentHTML('beforeend','<button type="button" class="cambiar-f" onclick="irPasoF(2,true)">✏ Cambiar artículos</button>');
+  const lineasDom=[...document.querySelectorAll('#articulos-container .articulo-line')].filter(d=>(d.querySelector('[id^=art_]')||{}).value);
+  r.querySelectorAll('.rev-lin').forEach((row,i)=>{ const d=lineasDom[i]; if(!d || row.querySelector('.cambiar-f')) return;
+    const b=document.createElement('button'); b.type='button'; b.className='cambiar-f'; b.textContent='✏'; b.setAttribute('aria-label','Cambiar este artículo');
+    b.onclick=()=>{ irPasoF(2,true); setTimeout(()=>abrirLineaF(d), 120); };
+    row.appendChild(b); });
+};
+
+/* 22/11/2026 (revisión del agente comercial): si el artículo YA está en el pedido, se despliega su línea y se va a sus unidades
+   (antes se intentaba ir a las unidades de una línea plegada y oculta: parecía que no hacía nada) */
+const anadirArtPlegadoF=window.anadirArt;
+window.anadirArt=function anadirArt(cod){
+  if(enPedidoArt(cod)){
+    const ya=[...document.querySelectorAll('#articulos-container input[id^="art_"]')].find(i=>i.value===cod||i.value===sinCeros(cod));
+    const d=ya && ya.closest('.articulo-line');
+    limpiarBuscadorArt();
+    if(d) abrirLineaF(d);   // sin showStatus: sube la pantalla arriba y taparía la línea
+    return;
+  }
+  anadirArtPlegadoF(cod);
+};
+
+/* ================= DESCARGA SEGÚN LA OBRA (22/11/2026, aprobado por Rossy) =================
+   Al elegir una obra (o una dirección) que ya tiene un pedido anterior del cliente, se rellenan
+   SOLO los campos vacíos con lo de ese último pedido:
+     contacto en obra + teléfono, calle estrecha, calle con horario limitado (+ horas y nota).
+   NO se rellenan: grúa (no siempre hace falta) ni «¿Se puede entregar antes?» (depende de cada pedido).
+   Se avisa en el paso 3: «📋 Como en el último pedido a esta obra (dd/mm). Revísalo.»
+   El dato sale de los pedidos ya guardados (colección pedidos, solo lectura): no se escribe nada nuevo.
+   Si se cambia de obra o se borra la dirección, se quita lo rellenado que el comercial no haya tocado. */
+var PEDIDOS_PREV_F=[], PREF_F=null;
+(function(){
+  const st=document.createElement('style');
+  st.textContent='#prefObraF{background:#eef4ff;border:1px solid #c9d8f2;color:#003880;border-radius:8px;padding:8px 10px;font-size:13px;margin:10px 4px 0}#prefObraF[hidden]{display:none}';
+  document.head.appendChild(st);
+})();
+function normDirF(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+async function cargarPedidosPrevF(partner){
+  PEDIDOS_PREV_F=[];
+  if(!partner) return;
+  try{
+    const snap=await getDocs(query(collection(db,'pedidos'), where('clientePartner','==',partner), orderBy('creadoEn','desc'), limit(20)));
+    snap.forEach(d=>PEDIDOS_PREV_F.push(d.data()));
+  }catch(e){ console.error('pedidos anteriores de la obra', e); return; }
+  // si la obra ya estaba elegida antes de que llegaran los pedidos, se aplica ahora
+  if(!PREF_F && (typeof obraElegida!=='undefined' && obraElegida)) aplicarPrefF({obraLN:obraElegida.cod, direccion:f('direccion')});
+  else if(!PREF_F && f('direccion')) aplicarPrefF({direccion:f('direccion')});
+}
+function buscarPrevF(clave){
+  if(clave.obraLN){ const p=PEDIDOS_PREV_F.find(p=>p.obraLN===clave.obraLN); if(p) return p; }
+  const n=normDirF(clave.direccion); if(!n) return null;
+  return PEDIDOS_PREV_F.find(p=>normDirF(p.direccion)===n) || null;
+}
+function notaPrefF(txt){
+  let n=document.getElementById('prefObraF');
+  const p3=document.getElementById('pasoF3');
+  if(!n && p3){ n=document.createElement('div'); n.id='prefObraF'; p3.insertBefore(n, p3.firstChild); }
+  if(!n) return;
+  n.hidden=!txt; n.textContent=txt||'';
+}
+function quitarPrefF(){
+  if(PREF_F){
+    Object.entries(PREF_F.campos).forEach(([id,v])=>{ const el=document.getElementById(id); if(el && el.value===v) el.value=''; });
+    Object.entries(PREF_F.radios).forEach(([name,v])=>{ const r=document.querySelector('input[name="'+name+'"]:checked'); if(r && r.value===v) r.checked=false; });
+    PREF_F=null;
+    try{ cambioRestringida(); }catch(e){}
+  }
+  notaPrefF('');
+}
+function aplicarPrefF(clave){
+  quitarPrefF();
+  const p=buscarPrevF(clave); if(!p) return;
+  const pref={campos:{}, radios:{}};
+  const ponCampo=(id,v)=>{ const el=document.getElementById(id); if(!el || el.value || !v) return; el.value=v; if(id==='tlfo1'){ try{ formatTel(el); }catch(e){} } pref.campos[id]=el.value; };
+  const ponRadio=(name,v)=>{ if(!v || document.querySelector('input[name="'+name+'"]:checked')) return; const r=document.querySelector('input[name="'+name+'"][value="'+v+'"]'); if(r){ r.checked=true; pref.radios[name]=v; } };
+  ponCampo('contacto_obra', p.contactoObra);
+  ponCampo('tlfo1', p.telefonoObra);
+  ponRadio('calle_estrecha', p.calleEstrecha);
+  ponRadio('calle_restringida', p.calleRestringida?'Sí':'No');
+  if(p.calleRestringida){ ponCampo('restr_desde', p.restringidaDesde); ponCampo('restr_hasta', p.restringidaHasta); ponCampo('restr_nota', p.restringidaNota); }
+  try{ cambioRestringida(); }catch(e){}
+  if(!Object.keys(pref.campos).length && !Object.keys(pref.radios).length) return;
+  PREF_F=pref;
+  let fecha=''; try{ const d=p.creadoEn&&p.creadoEn.toDate?p.creadoEn.toDate():null; if(d) fecha=' ('+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+')'; }catch(e){}
+  notaPrefF('📋 Contacto y calle como en el último pedido a esta obra'+fecha+'. Revísalo.');
+  try{ actualizarCadenasF(); }catch(e){}
+}
+cargarSugerenciasCliente=(function(o){ return function(partner){ quitarPrefF(); cargarPedidosPrevF(partner); return o(partner); }; })(cargarSugerenciasCliente);
+elegirObra=(function(o){ return function(it){ o(it); aplicarPrefF({obraLN:it&&it.obra&&it.obra.cod, direccion:f('direccion')}); }; })(elegirObra);
+seleccionarDireccion=(function(o){ return function(it){ o(it); aplicarPrefF({direccion:f('direccion')}); }; })(seleccionarDireccion);
+window.borrarDireccionF=(function(o){ return function(){ quitarPrefF(); return o.apply(this, arguments); }; })(window.borrarDireccionF);
+document.getElementById('direccion').addEventListener('input', ()=>{ if(PREF_F) quitarPrefF(); });
+const limpiarFormPrevF=window.limpiarFormulario;
+if(limpiarFormPrevF) window.limpiarFormulario=function(){ PREF_F=null; notaPrefF(''); return limpiarFormPrevF.apply(this, arguments); };
 
 (async function init(){
   setFechaAuto();
