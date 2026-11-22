@@ -2073,6 +2073,9 @@ function subirLineaF(id){
   if(c && d && c.firstChild!==d){ c.insertBefore(d, c.firstChild); renumerarLineas(); }
   if(c) c.scrollTop=0;
   okF();   // quita el aviso «Añade al menos un artículo» si estaba
+  // 22/11 (Rossy): la línea nueva se coloca justo debajo del buscador fijo, con las unidades a la vista
+  if(d) setTimeout(()=>{ const bf=document.querySelector('#pasoF2 .busc-fijo'), lim=(bf?bf.getBoundingClientRect().bottom:0)+8;
+    window.scrollBy({top:d.getBoundingClientRect().top-lim, behavior:'smooth'}); }, 60);
 }
 const anadirArtAbajoF=window.anadirArt;
 window.anadirArt=function anadirArt(cod){ const a=window.lineCount; anadirArtAbajoF(cod); if(window.lineCount>a) subirLineaF(window.lineCount); };
@@ -2207,6 +2210,8 @@ details.alt-f[open] summary{margin-bottom:6px}
 .limpiar-f{margin-top:2px}
 body.buscando-f .form-header,body.buscando-f .fijo-cli{position:static!important}
 body.buscando-f .busc-fijo{top:0!important}
+.paso-f #articulos-container{max-height:none;overflow:visible}   /* 22/11: sin recuadro con scroll propio (el buscador fijo lo tapaba) */
+.paso-f #cuentaLineas{display:none}
 body.buscando-f .paso-f.on{padding-bottom:75vh}
 body.escribiendo-f .paso-f.on{padding-bottom:60vh}   /* hueco para poder subir el campo por encima del teclado */
 .fecha-elegida-f{font-size:13.5px;color:#1a1a2e;margin:2px 0 4px}
@@ -2371,7 +2376,9 @@ if(window.matchMedia && matchMedia('(pointer:coarse)').matches){
     const a=document.activeElement;
     if(!a || !a.closest || !a.closest('.paso-f') || !a.matches('input,textarea') || /^(radio|checkbox)$/.test(a.type) || a.id==='buscaArt') return;
     const fld=a.closest('.field')||a, r=fld.getBoundingClientRect();
-    const cab=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cab2-f'))||0;
+    let cab=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cab2-f'))||0;
+    // en el paso 2 el buscador también está fijo arriba: el campo va debajo de él (antes quedaba tapado)
+    const bf=a.closest('#pasoF2') && document.querySelector('#pasoF2 .busc-fijo'); if(bf) cab=Math.max(cab, bf.getBoundingClientRect().bottom);
     const alto=window.visualViewport?visualViewport.height:window.innerHeight;
     if(r.top<cab+4 || r.bottom>alto*0.6) window.scrollBy({top:r.top-cab-10, behavior:'smooth'});
   };
