@@ -2551,6 +2551,8 @@ actualizarCadenasF();
 .articulo-line.plegada-f.ojo-f{background:#fff4e0;border-color:#f0c97a}
 .rev-dato .cambiar-f,.rev-tit .cambiar-f,.rev-lin .cambiar-f{flex:0 0 auto;margin-left:auto;border:0;background:none;color:var(--bm-blue);font-weight:800;font-size:12.5px;cursor:pointer;padding:2px 0 2px 8px;font-family:inherit;white-space:nowrap}
 .rev-tit{display:flex;align-items:center}
+.paso-f .otro-art button{border:2px solid var(--bm-blue);background:#fff;color:var(--bm-blue)}
+.paso-f .otro-art button:active{background:var(--bm-blue);color:#fff}
 .destaca-f{box-shadow:0 0 0 4px rgba(0,56,128,.25)!important;transform:scale(1.01);transition:box-shadow .2s,transform .2s}
 .dir-wrap-f{position:relative}
 .dir-wrap-f input{padding-right:44px;width:100%;box-sizing:border-box}
@@ -2563,7 +2565,7 @@ actualizarCadenasF();
   const ba=document.querySelector('.busc-art'); if(ba && !document.querySelector('.rotulo-f')) ba.insertAdjacentHTML('beforebegin','<div class="rotulo-f">🔍 Busca el siguiente artículo</div>');
   const oa=document.querySelector('.otro-art');
   if(oa){
-    oa.insertAdjacentHTML('afterend','<div class="aviso-stock-f" id="avisoStockF" style="display:none"></div><button type="button" class="sig-inline-f" onclick="siguientePasoF()">Siguiente: Entrega →</button>');
+    oa.insertAdjacentHTML('afterend','<div class="aviso-stock-f" id="avisoStockF" style="display:none"></div>');
   }
 })();
 
@@ -2584,9 +2586,12 @@ function terminarLineaF(){
   const a=document.activeElement; if(a && a.blur && a!==document.body) a.blur();
   document.body.classList.remove('escribiendo-f');
   plegarCompletasF();
-  const oa=document.querySelector('.otro-art'), sg=document.querySelector('.sig-inline-f');
-  [oa&&oa.querySelector('button'), sg].forEach(b=>{ if(!b) return; b.classList.add('destaca-f'); setTimeout(()=>b.classList.remove('destaca-f'), 2500); });
-  setTimeout(()=>{ (sg||oa) && (sg||oa).scrollIntoView({block:'end', behavior:'smooth'}); }, 250);   // cuando ya se ha cerrado el teclado
+  const b=document.getElementById('btnOtroArt'); if(!b) return;
+  b.classList.add('destaca-f'); setTimeout(()=>b.classList.remove('destaca-f'), 2500);
+  setTimeout(()=>{   // cuando ya se ha cerrado el teclado: el botón, entero, por encima de la barra de abajo
+    const nav=document.getElementById('navF'), alto=(window.visualViewport?visualViewport.height:innerHeight)-(nav?nav.offsetHeight:0)-12;
+    const r=b.getBoundingClientRect(); if(r.bottom>alto || r.top<0) window.scrollBy({top:r.bottom-alto, behavior:'smooth'});
+  }, 300);
 }
 window.terminarLineaF=terminarLineaF;
 // Intro en unidades, dto. o descripción: se atiende aquí (fase de captura) y no llega a los manejadores antiguos que iban al buscador
