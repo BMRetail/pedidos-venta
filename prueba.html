@@ -2550,7 +2550,11 @@ actualizarCadenasF();
 .res-lin-f .ed{flex:0 0 auto;color:var(--bm-blue);font-size:15px}
 .articulo-line.plegada-f.ojo-f{background:#fff4e0;border-color:#f0c97a}
 .rev-dato .cambiar-f,.rev-tit .cambiar-f,.rev-lin .cambiar-f{flex:0 0 auto;margin-left:auto;border:0;background:none;color:var(--bm-blue);font-weight:800;font-size:12.5px;cursor:pointer;padding:2px 0 2px 8px;font-family:inherit;white-space:nowrap}
-.rev-tit{display:flex;align-items:center}`;
+.rev-tit{display:flex;align-items:center}
+.destaca-f{box-shadow:0 0 0 4px rgba(0,56,128,.25)!important;transform:scale(1.01);transition:box-shadow .2s,transform .2s}
+.dir-wrap-f{position:relative}
+.dir-wrap-f input{padding-right:44px;width:100%;box-sizing:border-box}
+.borrar-dir-f{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:18px;background:#eef1f6;color:#646568;font-size:16px;font-weight:800;cursor:pointer}`;
   document.head.appendChild(st);
 })();
 
@@ -2571,8 +2575,25 @@ document.addEventListener('focusin', e=>{
   const m=t.id.match(/^(dto|desc)_(\d+)$/);
   const desdeUnidades=m && de && de.id==='uni_'+m[2];
   const alBoton=t.id==='btnOtroArt' && de && /^(uni|dto|desc)_/.test(de.id||'');
-  if(desdeUnidades || alBoton){ setTimeout(()=>{ t.blur(); irBuscadorArt(); }, 0); }
+  if(desdeUnidades || alBoton){ setTimeout(()=>{ t.blur(); terminarLineaF(); }, 0); }
 });
+/* 22/11 (Rossy): Intro/flecha al acabar una línea NO van al buscador (abría el teclado y había que bajar a buscar «Siguiente»).
+   Cierran el teclado, pliegan la línea y dejan a la vista «➕ Añadir otro artículo» y «Siguiente: Entrega →».
+   Al buscador solo se va pulsando «Añadir otro artículo». */
+function terminarLineaF(){
+  const a=document.activeElement; if(a && a.blur && a!==document.body) a.blur();
+  document.body.classList.remove('escribiendo-f');
+  plegarCompletasF();
+  const oa=document.querySelector('.otro-art'), sg=document.querySelector('.sig-inline-f');
+  [oa&&oa.querySelector('button'), sg].forEach(b=>{ if(!b) return; b.classList.add('destaca-f'); setTimeout(()=>b.classList.remove('destaca-f'), 2500); });
+  setTimeout(()=>{ (sg||oa) && (sg||oa).scrollIntoView({block:'end', behavior:'smooth'}); }, 250);   // cuando ya se ha cerrado el teclado
+}
+window.terminarLineaF=terminarLineaF;
+// Intro en unidades, dto. o descripción: se atiende aquí (fase de captura) y no llega a los manejadores antiguos que iban al buscador
+document.addEventListener('keydown', e=>{
+  const t=e.target; if(!t || !(e.key==='Enter' || e.keyCode===13)) return;
+  if(/^(uni_|dto_|desc_)/.test(t.id||'') && t.closest('#articulos-container')){ e.preventDefault(); e.stopImmediatePropagation(); terminarLineaF(); }
+}, true);
 
 /* ---------- 6. al volver al buscador, que se vea: marco azul y «Busca el siguiente artículo» ---------- */
 const irBuscadorArtBaseF=window.irBuscadorArt;
@@ -2685,6 +2706,43 @@ if(window.visualViewport){
     altoAntesF=h;
   });
 }
+
+/* ---------- 11. (22/11) dirección de entrega: borrar y volver a ver las obras ----------
+   Antes la lista de obras solo salía al entrar con el campo vacío; al borrar con el teclado ya no volvía
+   (y con menos de 4 letras se cerraba). Ahora: botón ✕ para borrar, y con el campo vacío o con 1–3 letras salen sus obras filtradas. */
+function itemsDireccionF(term){
+  const todos=obrasCliente.map(itemObra).concat(sugerenciasCliente.direcciones.map(x=>Object.assign({},x,{subText:(x.subText||'')+' · dirección de un pedido anterior (sin código LN)'})));
+  if(!term) return todos;
+  const n=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const pals=n(term).split(/\s+/).filter(Boolean);
+  return todos.filter(it=>{ const h=n((it.mainText||'')+' '+(it.subText||'')); return pals.every(w=>h.includes(w)); });
+}
+function abrirObrasF(term){
+  const l=document.getElementById('direccion_list'); if(!l) return;
+  const items=itemsDireccionF(term);
+  if(items.length) renderAutocomplete(l, items, it=>{ it.obraLN ? elegirObra(it) : seleccionarDireccion(it); pintarBorrarDirF(); });
+  else l.classList.remove('open');
+}
+function pintarBorrarDirF(){ const b=document.getElementById('borrarDirF'); if(b) b.style.display=f('direccion')?'':'none'; }
+window.borrarDireccionF=function borrarDireccionF(){
+  ['direccion','cp','municipio'].forEach(id=>{ const e=document.getElementById(id); if(e){ e.value=''; e.classList.remove('error'); } });
+  obraElegida=null; coordsObra=null; mostrarObraHint(); pintarBorrarDirF(); actualizarCadenasF(); guardarBorradorPronto(); programarAlmacen();
+  const d=document.getElementById('direccion'); if(d) d.focus({preventScroll:true});
+  setTimeout(()=>abrirObrasF(''), 0);   // después del «clic fuera cierra las listas» general
+};
+(function montarDireccionF(){
+  const d=document.getElementById('direccion'); if(!d) return;
+  const w=document.createElement('div'); w.className='dir-wrap-f'; d.parentNode.insertBefore(w, d); w.appendChild(d);
+  w.insertAdjacentHTML('beforeend','<button type="button" class="borrar-dir-f" id="borrarDirF" aria-label="Borrar la dirección" onclick="borrarDireccionF()" style="display:none">✕</button>');
+  d.addEventListener('click', ()=>{ if(!d.value) abrirObrasF(''); });
+  d.addEventListener('input', ()=>{
+    pintarBorrarDirF();
+    const v=d.value.trim();
+    if(v.length<4){ abrirObrasF(v); setTimeout(()=>{ if(d.value.trim()===v) abrirObrasF(v); }, 480); }   // la búsqueda de calles cierra la lista con menos de 4 letras
+  });
+})();
+elegirObra=(function(o){ return function(it){ o(it); pintarBorrarDirF(); }; })(elegirObra);
+seleccionarDireccion=(function(o){ return function(it){ o(it); pintarBorrarDirF(); actualizarCadenasF(); }; })(seleccionarDireccion);
 
 /* ---------- 10. resumen con «✏ Cambiar» ---------- */
 const PASO_DATO_F={'Cliente':1,'Obra':1,'Tienda':1,'Transporte':3,'Contacto':3,'Descarga':3};
