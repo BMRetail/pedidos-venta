@@ -1515,7 +1515,8 @@ function filaCatArt(a){
 window.buscarArt=function buscarArt(){
   const r=document.getElementById('resArt'); if(!r) return;
   if(!clienteSeleccionado){ r.innerHTML='<div class="vacio">Elige primero el cliente.</div>'; return; }
-  const pal=toksArt(document.getElementById('buscaArt').value);
+  const pal=toksArt(document.getElementById('buscaArt').value).map(p=>/^\d+$/.test(p)?p.replace(/^0+(?=.)/,''):p);
+  const q0=pal.length===1 && /^\d+$/.test(pal[0]) ? pal[0] : '';
   const compras=comprasCliente.map(datosArt);
   const aviso=estadoCatalogo==='cargando'?'<div class="vacio">Cargando el catálogo…</div>':estadoCatalogo==='error'?'<div class="vacio">No se pudo cargar el catálogo. Revisa la conexión y vuelve a entrar.</div>':'';
   if(!pal.length){
@@ -1524,9 +1525,10 @@ window.buscarArt=function buscarArt(){
       compras.slice(0,10).map(filaCompraArt).join('')+'<div class="vacio">Escribe para buscar entre todo lo que compra y en el catálogo.</div>'+aviso;
     return;
   }
-  const comp=compras.filter(a=>pal.every(p=>encajaArt(p,a.t))).sort((x,y)=>(y.act-x.act));
+  const comp=compras.filter(a=>pal.every(p=>encajaArt(p,a.t))).sort((x,y)=>((sinCeros(y.c)===q0)-(sinCeros(x.c)===q0)) || (y.act-x.act));
   const yaC=new Set(comp.map(a=>a.c));
   const cat=(catalogoApp||[]).filter(a=>!yaC.has(a.c) && pal.every(p=>encajaArt(p,a.t)));
+  if(q0) cat.sort((x,y)=>(sinCeros(y.c)===q0)-(sinCeros(x.c)===q0));
   // 14/11/2026 (Rossy): el bloque «Ya lo compra» solo sale si hay resultados que ya ha comprado
   r.innerHTML=(comp.length?'<div class="grupo"><span>⭐ Ya lo compra este cliente</span><span>'+comp.length+'</span></div>'+comp.slice(0,20).map(filaCompraArt).join(''):'')+
     '<div class="grupo cat"><span>📦 '+(comp.length?'Resto del catálogo':'Catálogo')+'</span><span>'+cat.length.toLocaleString('es-ES')+'</span></div>'+
@@ -2505,6 +2507,200 @@ onClienteSeleccionado=(function(o){ return function(it){ o(it); actualizarCadena
 pintarContactos=(function(o){ return function(){ o(); actualizarCadenasF(); }; })(pintarContactos);
 elegirObra=(function(o){ return function(it){ o(it); actualizarCadenasF(); }; })(elegirObra);
 actualizarCadenasF();
+
+/* ===== 22/11/2026 (Rossy, pruebas en su móvil) · SOLO PRUEBA · va DESPUÉS de pedido_cadenas.js =====
+   1. Flecha «→» del teclado (su teclado no hace caso del ✓): de Unidades a Dto. SIN tocar la pantalla = quiere seguir → al buscador.
+      Si toca Dto. con el dedo, entra normal.
+   2. Línea nueva colocada debajo del buscador cuando la lista de resultados ya se ha cerrado (antes quedaba tapada con artículos del catálogo).
+   3. Buscador: al tocarlo no salen de golpe todas sus compras; se escribe y salen primero las que ya compra y después el catálogo.
+      Enlace «⭐ Ver lo que más compra» para quien la quiera.
+   4. (en construir_prueba.py) códigos: da igual cuántos ceros a la izquierda; el código exacto sale el primero y marcado.
+   5. Más ancho y código visible (6 cifras); Dto. más estrecho.
+   6. Al volver al buscador se marca en azul: «Busca el siguiente artículo».
+   7. Almacén y tiempo fuera de la pantalla del comercial (se sigue calculando y transporte lo ve en su bandeja);
+      solo un aviso si puede faltar stock (opción b de Rossy).
+   8. Líneas plegadas: solo se ve abierta la que se está rellenando; las completas quedan en una fila (toca para cambiarla).
+   9. Botón «Siguiente: Entrega →» también debajo de los artículos; al cerrar el teclado vuelve la barra de abajo.
+  10. Resumen (paso 4) con «✏ Cambiar» en cada dato y en cada artículo. */
+(function estilosLineasF(){
+  const st=document.createElement('style');
+  st.textContent=`
+.paso-f .section{margin:10px 4px;padding:12px 10px}
+.paso-f .articulo-line{padding:8px}
+.paso-f .articulo-line-top{grid-template-columns:minmax(76px,1.35fr) 1.15fr .8fr 40px;gap:6px}
+.paso-f .articulo-line-top input{padding-left:8px;padding-right:6px}
+#almacenSec{display:none!important}
+.aviso-stock-f{margin:8px 0 0;padding:8px 10px;border-radius:10px;background:#fff4e0;color:#7a4700;font-size:13px;font-weight:700;line-height:1.45}
+.busc-fijo.siguiente-f .busc-art input{border-color:var(--bm-blue);box-shadow:0 0 0 4px rgba(0,56,128,.18)}
+.busc-fijo .rotulo-f{display:none;font-size:12.5px;font-weight:800;color:var(--bm-blue);margin:0 0 4px 2px}
+.busc-fijo.siguiente-f .rotulo-f{display:block}
+#btnOtroArt:focus,#btnOtroArt:focus-visible{outline:3px solid var(--bm-blue);outline-offset:2px;background:#d6e2f5}
+.sig-inline-f{display:block;width:100%;min-height:48px;margin-top:10px;border:0;border-radius:12px;background:var(--bm-blue);color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit}
+.ver-compras-f{display:block;width:100%;padding:10px 12px;border:0;border-top:1px solid #eef1f6;background:#fff;color:var(--bm-blue);font-weight:800;font-size:13.5px;text-align:left;cursor:pointer;font-family:inherit}
+.exacto-f{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;background:#e6f4ea;color:var(--bm-green-dark);border-radius:9px;padding:0 7px}
+.res-lin-f{display:none;align-items:center;gap:8px;cursor:pointer}
+.articulo-line.plegada-f{padding:8px 10px}
+.articulo-line.plegada-f > *:not(.res-lin-f){display:none!important}
+.articulo-line.plegada-f > .res-lin-f{display:flex}
+.res-lin-f .n{flex:0 0 auto;font-size:11.5px;font-weight:800;color:#fff;background:var(--bm-blue);border-radius:9px;padding:1px 8px}
+.linea-auto .res-lin-f .n{background:var(--bm-red)}
+.res-lin-f .t{flex:1;min-width:0;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-lin-f .t small{font-weight:600;color:#646568}
+.res-lin-f .q{flex:0 0 auto;font-size:15px;font-weight:800}
+.res-lin-f .ed{flex:0 0 auto;color:var(--bm-blue);font-size:15px}
+.articulo-line.plegada-f.ojo-f{background:#fff4e0;border-color:#f0c97a}
+.rev-dato .cambiar-f,.rev-tit .cambiar-f,.rev-lin .cambiar-f{flex:0 0 auto;margin-left:auto;border:0;background:none;color:var(--bm-blue);font-weight:800;font-size:12.5px;cursor:pointer;padding:2px 0 2px 8px;font-family:inherit;white-space:nowrap}
+.rev-tit{display:flex;align-items:center}`;
+  document.head.appendChild(st);
+})();
+
+/* ---------- montaje: rótulo del buscador, botón «Siguiente» en el paso 2, aviso de stock ---------- */
+(function montarLineasF(){
+  const ba=document.querySelector('.busc-art'); if(ba && !document.querySelector('.rotulo-f')) ba.insertAdjacentHTML('beforebegin','<div class="rotulo-f">🔍 Busca el siguiente artículo</div>');
+  const oa=document.querySelector('.otro-art');
+  if(oa){
+    oa.insertAdjacentHTML('afterend','<div class="aviso-stock-f" id="avisoStockF" style="display:none"></div><button type="button" class="sig-inline-f" onclick="siguientePasoF()">Siguiente: Entrega →</button>');
+  }
+})();
+
+/* ---------- 1. flecha «→» del teclado: de Unidades a Dto. sin tocar la pantalla = siguiente artículo ---------- */
+let ultimoToqueF=0;
+['pointerdown','touchstart','mousedown'].forEach(ev=>document.addEventListener(ev, ()=>{ ultimoToqueF=Date.now(); }, {capture:true, passive:true}));
+document.addEventListener('focusin', e=>{
+  const t=e.target, de=e.relatedTarget; if(!t || !t.id || Date.now()-ultimoToqueF<600) return;   // con el dedo: entra normal
+  const m=t.id.match(/^(dto|desc)_(\d+)$/);
+  const desdeUnidades=m && de && de.id==='uni_'+m[2];
+  const alBoton=t.id==='btnOtroArt' && de && /^(uni|dto|desc)_/.test(de.id||'');
+  if(desdeUnidades || alBoton){ setTimeout(()=>{ t.blur(); irBuscadorArt(); }, 0); }
+});
+
+/* ---------- 6. al volver al buscador, que se vea: marco azul y «Busca el siguiente artículo» ---------- */
+const irBuscadorArtBaseF=window.irBuscadorArt;
+window.irBuscadorArt=function irBuscadorArt(){
+  plegarCompletasF();
+  irBuscadorArtBaseF();
+  const ba=document.querySelector('.busc-fijo'); if(!ba) return;
+  ba.classList.add('siguiente-f'); clearTimeout(window._tSigF); window._tSigF=setTimeout(()=>ba.classList.remove('siguiente-f'), 4000);
+};
+document.addEventListener('input', e=>{ if(e.target && e.target.id==='buscaArt'){ const ba=document.querySelector('.busc-fijo'); if(ba && e.target.value) ba.classList.remove('siguiente-f'); } });
+
+/* ---------- 3. buscador: nada de golpe; se escribe y salen primero las que ya compra ---------- */
+let verComprasF=false;
+const buscarArtConTodoF=window.buscarArt;
+window.buscarArt=function buscarArt(){
+  const q=document.getElementById('buscaArt'), r=document.getElementById('resArt');
+  if(q && r && clienteSeleccionado && !q.value.trim() && !verComprasF){
+    r.innerHTML='<div class="vacio">Escribe el código o una palabra (cemento, mortero…): primero salen los que <b>ya compra este cliente</b> y debajo el resto del catálogo.</div>'+
+      (comprasCliente.length?'<button type="button" class="ver-compras-f" onclick="verLoQueCompraF()">⭐ Ver lo que más compra ('+comprasCliente.length+')</button>':'');
+    return;
+  }
+  buscarArtConTodoF();
+  // código exacto: el primero (ya ordenado en el buscador) y marcado
+  const pal=toksArt(q?q.value:'').map(p=>/^\d+$/.test(p)?p.replace(/^0+(?=.)/,''):p);
+  if(r && pal.length===1 && /^\d+$/.test(pal[0])){
+    r.querySelectorAll('.it .s').forEach(s=>{ const c=(s.textContent||'').split(' ·')[0].trim(); if(c===pal[0] && !s.querySelector('.exacto-f')) s.insertAdjacentHTML('afterbegin','<span class="exacto-f" style="margin:0 6px 0 0">código exacto</span>'); });
+  }
+};
+window.verLoQueCompraF=function verLoQueCompraF(){ verComprasF=true; buscarArtConTodoF(); const q=document.getElementById('buscaArt'); if(q) q.focus({preventScroll:true}); };
+document.addEventListener('input', e=>{ if(e.target && e.target.id==='buscaArt') verComprasF=false; });
+
+/* ---------- 8. líneas plegadas ---------- */
+function lineaCompletaF(d){
+  const u=d.querySelector('[id^=uni_]'); if(!u || !(+u.value>0)) return false;
+  if(d.dataset.manual==='1'){ const e=d.querySelector('[id^=desc_]'); if(!e || e.value.trim().length<3) return false; }
+  return true;
+}
+function pintarResumenLineaF(d){
+  let r=d.querySelector(':scope > .res-lin-f');
+  if(!r){ r=document.createElement('div'); r.className='res-lin-f'; r.setAttribute('role','button'); r.tabIndex=0; d.insertBefore(r, d.firstChild); r.addEventListener('click', ()=>abrirLineaF(d)); }
+  const v=s=>(d.querySelector(s)||{}).value||'';
+  const n=(d.querySelector('.num-linea')||{}).textContent||'';
+  const lab=((d.querySelector('[id^=uni_]')||{}).closest?.('.field')?.querySelector('label')?.textContent.match(/\(([^)]+)\)/)||[])[1]||'uds';
+  const ojo=!!d.querySelector('.aviso-cant-f');
+  r.innerHTML='<span class="n">'+esc(n.replace('Artículo ','').replace(' · grúa (automática)',' · grúa'))+'</span>'+
+    '<span class="t">'+esc(d.dataset.auto==='grua'?'Grúa (automática)':(v('[id^=desc_]')||'(sin descripción)'))+' <small>· '+esc(v('[id^=art_]'))+(+v('[id^=dto_]')>0?' · dto. '+esc(v('[id^=dto_]'))+' %':'')+'</small></span>'+
+    '<span class="q">'+(ojo?'⚠ ':'')+esc(v('[id^=uni_]'))+' <small style="font-weight:600;font-size:12px">'+esc(lab)+'</small></span><span class="ed" aria-label="Cambiar">✏</span>';
+  d.classList.toggle('ojo-f', ojo);
+}
+function plegarCompletasF(salvo){
+  document.querySelectorAll('#articulos-container .articulo-line').forEach(d=>{
+    if(d===salvo) return;
+    if(lineaCompletaF(d)){ pintarResumenLineaF(d); d.classList.add('plegada-f'); }
+    else d.classList.remove('plegada-f');   // incompleta: se queda abierta para rellenarla
+  });
+}
+function abrirLineaF(d){
+  plegarCompletasF(d);
+  d.classList.remove('plegada-f');
+  setTimeout(()=>{
+    const bf=document.querySelector('#pasoF2 .busc-fijo'), lim=(bf?bf.getBoundingClientRect().bottom:0)+8;
+    window.scrollBy({top:d.getBoundingClientRect().top-lim, behavior:'smooth'});
+    const u=d.querySelector('[id^=uni_]'); if(u && d.dataset.auto!=='grua') u.focus({preventScroll:true});
+  }, 60);
+}
+window.abrirLineaF=abrirLineaF;
+
+/* ---------- 2. línea nueva: arriba, abierta, y colocada debajo del buscador cuando la lista ya se ha cerrado ---------- */
+subirLineaF=function(id){
+  const c=document.getElementById('articulos-container'), d=document.getElementById('line-'+id);
+  document.body.classList.remove('buscando-f');   // la cabecera vuelve a su sitio ANTES de colocar la línea
+  if(c && d && c.firstChild!==d){ c.insertBefore(d, c.firstChild); renumerarLineas(); }
+  okF();
+  if(!d) return;
+  plegarCompletasF(d);
+  const colocar=()=>{ const bf=document.querySelector('#pasoF2 .busc-fijo'), lim=(bf?bf.getBoundingClientRect().bottom:0)+8;
+    const top=d.getBoundingClientRect().top; if(Math.abs(top-lim)>6) window.scrollBy({top:top-lim}); };
+  requestAnimationFrame(()=>setTimeout(colocar, 120)); setTimeout(colocar, 450); setTimeout(colocar, 850);
+};
+// al entrar en el paso 2 y al validarlo: completas plegadas, incompletas abiertas
+const pintarPasoBaseF=pintarPasoF;
+pintarPasoF=function(){ pintarPasoBaseF(); if(pasoF===2) plegarCompletasF(); };
+const validarPasoBaseF=validarPasoF;
+validarPasoF=function(k){
+  const ok=validarPasoBaseF(k);
+  if(!ok && k===2) document.querySelectorAll('#articulos-container .articulo-line').forEach(d=>{ if(!lineaCompletaF(d)) d.classList.remove('plegada-f'); });
+  return ok;
+};
+// si cambia el aviso de cantidad o la grúa, el resumen de la línea plegada se actualiza
+new MutationObserver(()=>document.querySelectorAll('#articulos-container .articulo-line.plegada-f').forEach(pintarResumenLineaF))
+  .observe(document.getElementById('articulos-container'), {childList:true, subtree:false});
+
+/* ---------- 7. aviso de stock (opción b): sin almacén ni tiempo, solo si puede faltar ---------- */
+calcularAlmacen=(function(o){ return async function(){ await o(); pintarAvisoStockF(); }; })(calcularAlmacen);
+function pintarAvisoStockF(){
+  const a=document.getElementById('avisoStockF'); if(!a) return;
+  const fal=(almacenCalculado && !almacenCalculado.completo)?(almacenCalculado.faltan||[]):[];
+  if(!fal.length){ a.style.display='none'; a.textContent=''; return; }
+  const nombre=c=>{ const i=[...document.querySelectorAll('#articulos-container [id^=art_]')].find(x=>x.value===sinCeros(c)); const d=i&&i.closest('.articulo-line').querySelector('[id^=desc_]'); return sinCeros(c)+(d&&d.value?' '+d.value.slice(0,28):''); };
+  a.innerHTML='⚠ Puede faltar stock de '+fal.map(c=>esc(nombre(c))).join(', ')+'. Transporte te confirmará la fecha.';
+  a.style.display='';
+}
+
+/* ---------- 9. teclado cerrado con «atrás»: el campo pierde el foco y vuelve la barra de abajo ---------- */
+if(window.visualViewport){
+  let altoAntesF=visualViewport.height;
+  visualViewport.addEventListener('resize', ()=>{
+    const h=visualViewport.height;
+    if(h-altoAntesF>150){ const a=document.activeElement; if(a && a.matches && a.matches('input:not([type=radio]):not([type=checkbox]),textarea') && a.id!=='buscaArt') a.blur(); document.body.classList.remove('escribiendo-f'); }
+    altoAntesF=h;
+  });
+}
+
+/* ---------- 10. resumen con «✏ Cambiar» ---------- */
+const PASO_DATO_F={'Cliente':1,'Obra':1,'Tienda':1,'Transporte':3,'Contacto':3,'Descarga':3};
+const pintarResumenBaseF=pintarResumenPasoF;
+pintarResumenPasoF=function(){
+  pintarResumenBaseF();
+  const r=document.getElementById('resumenPasoF'); if(!r) return;
+  r.querySelectorAll('.rev-dato').forEach(row=>{ const k=(row.querySelector('span')||{}).textContent||''; const p=PASO_DATO_F[k.trim()];
+    if(p && !row.querySelector('.cambiar-f')) row.insertAdjacentHTML('beforeend','<button type="button" class="cambiar-f" onclick="irPasoF('+p+',true)">✏ Cambiar</button>'); });
+  const tit=r.querySelector('.rev-tit'); if(tit && !tit.querySelector('.cambiar-f')) tit.insertAdjacentHTML('beforeend','<button type="button" class="cambiar-f" onclick="irPasoF(2,true)">✏ Cambiar artículos</button>');
+  const lineasDom=[...document.querySelectorAll('#articulos-container .articulo-line')].filter(d=>(d.querySelector('[id^=art_]')||{}).value);
+  r.querySelectorAll('.rev-lin').forEach((row,i)=>{ const d=lineasDom[i]; if(!d || row.querySelector('.cambiar-f')) return;
+    const b=document.createElement('button'); b.type='button'; b.className='cambiar-f'; b.textContent='✏'; b.setAttribute('aria-label','Cambiar este artículo');
+    b.onclick=()=>{ irPasoF(2,true); setTimeout(()=>abrirLineaF(d), 120); };
+    row.appendChild(b); });
+};
 
 (async function init(){
   setFechaAuto();
